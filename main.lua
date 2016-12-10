@@ -135,7 +135,7 @@ function KeystoneManager:ShowWindow(input)
 		refreshbtn:SetText('Refresh');
 
 		refreshbtn:SetCallback('OnClick', function()
-			self:GetKeystone();
+			self:GetKeystone(true);
 			self:GetWeeklyBest();
 		end);
 		self.KeystoneWindow:AddChild(refreshbtn);
@@ -150,7 +150,8 @@ function KeystoneManager:ShowWindow(input)
 	self.KeystoneWindow:Show();
 end
 
-function KeystoneManager:GetKeystone()
+function KeystoneManager:GetKeystone(force)
+	force = force or false;
 	local name = self:NameAndRealm();
 	if not self.db.global.keystones then
 		self.db.global.keystones = {};
@@ -168,7 +169,7 @@ function KeystoneManager:GetKeystone()
 					local info = self:ExtractKeystoneInfo(link);
 					local oldInfo = self:ExtractKeystoneInfo(oldKey);
 
-					if oldInfo == nil or (info.dungeonId ~= oldInfo.dungeonId and info.level ~= oldInfo.level) then --keystone has changed
+					if force or oldInfo == nil or (info.dungeonId ~= oldInfo.dungeonId and info.level ~= oldInfo.level) then --keystone has changed
 						SendChatMessage(
 							'New Keystone - ' .. link .. ' - ' .. info.dungeonName .. ' +' .. info.level,
 							'PARTY'
