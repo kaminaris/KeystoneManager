@@ -13,6 +13,7 @@ function KeystoneManager:OnInitialize()
 	self.db = LibStub('AceDB-3.0'):New('KeystoneManagerDb', defaults);
 	self:RegisterChatCommand('keystonemanager', 'ShowWindow');
 	self:RegisterChatCommand('keylist', 'ShowWindow');
+	self:RegisterChatCommand('keyprint', 'PrintKeystone');
 	self:RegisterEvent('BAG_UPDATE');
 end
 
@@ -118,17 +119,32 @@ function KeystoneManager:ShowWindow(input)
 		tableWrapper.head_offset = 20;
 		self.KeystoneWindow:AddChild(tableWrapper);
 
-		local btn = AceGUI:Create('Button');
-		btn:SetWidth(100);
-		btn:SetText('Clear');
+		-- Clear button
+		local clearBtn = AceGUI:Create('Button');
+		clearBtn:SetWidth(100);
+		clearBtn:SetText('Clear');
 
-		btn:SetCallback('OnClick', function()
+		clearBtn:SetCallback('OnClick', function()
 			self:ClearKeystones();
 		end);
-		self.KeystoneWindow:AddChild(btn);
-		btn:ClearAllPoints();
-		btn:SetPoint('BOTTOMLEFT', self.KeystoneWindow.frame, 20, 20);
---		btn:SetHeight(20);
+		self.KeystoneWindow:AddChild(clearBtn);
+
+		-- Refresh button
+		local refreshbtn = AceGUI:Create('Button');
+		refreshbtn:SetWidth(100);
+		refreshbtn:SetText('Refresh');
+
+		refreshbtn:SetCallback('OnClick', function()
+			self:GetKeystone();
+			self:GetWeeklyBest();
+		end);
+		self.KeystoneWindow:AddChild(refreshbtn);
+
+		-- Set points manually
+		clearBtn:ClearAllPoints();
+		clearBtn:SetPoint('BOTTOMLEFT', self.KeystoneWindow.frame, 20, 20);
+		refreshbtn:ClearAllPoints();
+		refreshbtn:SetPoint('BOTTOMLEFT', self.KeystoneWindow.frame, 130, 20);
 	end
 
 	self.KeystoneWindow:Show();
@@ -150,9 +166,9 @@ function KeystoneManager:GetKeystone()
 					local oldKey = self.db.global.keystones[name];
 
 					local info = self:ExtractKeystoneInfo(link);
-					local oldInfo = self:ExtractKeystoneInfo(link);
+					local oldInfo = self:ExtractKeystoneInfo(oldKey);
 
-					if info.dungeonId ~= oldInfo.dungeonId and info.level ~= oldInfo.level then --keystone has changed
+					if oldInfo == nil or (info.dungeonId ~= oldInfo.dungeonId and info.level ~= oldInfo.level) then --keystone has changed
 						SendChatMessage(
 							'New Keystone - ' .. link .. ' - ' .. info.dungeonName .. ' +' .. info.level,
 							'PARTY'
@@ -260,6 +276,10 @@ function KeystoneManager:NameWithoutRealm(name)
 end
 
 function KeystoneManager:ExtractKeystoneInfo(link)
+	if not link then
+		return nil;
+	end
+
 	local parts = { strsplit(':', link) }
 
 	local dungeonId = tonumber(parts[15]);
