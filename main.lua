@@ -1,5 +1,6 @@
 KeystoneManager = LibStub('AceAddon-3.0'):NewAddon('KeystoneManager', 'AceConsole-3.0', 'AceEvent-3.0', 'AceTimer-3.0');
 AceGUI = LibStub('AceGUI-3.0');
+
 local defaults = {
 	global = {
 		keystones = {},
@@ -9,15 +10,15 @@ local defaults = {
 };
 
 function KeystoneManager:OnInitialize()
---	LibStub('AceConfig-3.0'):RegisterOptionsTable('MaxDps', options, {'/maxdps'});
 	self.db = LibStub('AceDB-3.0'):New('KeystoneManagerDb', defaults);
 	self:RegisterChatCommand('keystonemanager', 'ShowWindow');
 	self:RegisterChatCommand('keylist', 'ShowWindow');
 	self:RegisterChatCommand('keyprint', 'PrintKeystone');
 	self:RegisterEvent('BAG_UPDATE');
+	self:RegisterEvent('PLAYER_ENTERING_WORLD');
 end
 
-function KeystoneManager:OnEnable()
+function KeystoneManager:PLAYER_ENTERING_WORLD()
 	self:GetWeeklyBest();
 end
 
