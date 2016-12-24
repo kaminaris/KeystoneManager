@@ -5,7 +5,10 @@ local defaults = {
 	global = {
 		keystones = {},
 		target = 'GUILD',
-		whisper = ''
+		whisper = '',
+		nondepleted = false,
+		minlevel = 0,
+		maxlevel = 20
 	}
 };
 
@@ -33,8 +36,8 @@ function KeystoneManager:ShowWindow(input)
 		self.KeystoneWindow = AceGUI:Create('Window');
 		self.KeystoneWindow:SetTitle('Keystone Manager');
 		self.KeystoneWindow:SetLayout('Flow');
-		self.KeystoneWindow:SetWidth(570);
-		self.KeystoneWindow:SetHeight(500);
+		self.KeystoneWindow:SetWidth(625);
+		self.KeystoneWindow:SetHeight(550);
 		self.KeystoneWindow:EnableResize(false);
 
 		local target = AceGUI:Create('Dropdown');
@@ -60,6 +63,32 @@ function KeystoneManager:ShowWindow(input)
 		end);
 		self.KeystoneWindow:AddChild(whisper);
 
+		local nondepleted = AceGUI:Create('CheckBox');
+		nondepleted:SetLabel('Exclude depleted');
+		nondepleted:SetValue(self.db.global.nondepleted);
+		nondepleted:SetCallback('OnValueChanged', function(self, event, val)
+			KeystoneManager.db.global.nondepleted = val;
+		end);
+		self.KeystoneWindow:AddChild(nondepleted);
+
+		local minlevel = AceGUI:Create('Slider');
+		minlevel:SetLabel('Min Level');
+		minlevel:SetSliderValues(0, 50, 1);
+		minlevel:SetValue(self.db.global.minlevel);
+		minlevel:SetCallback('OnValueChanged', function(self, event, val)
+			KeystoneManager.db.global.minlevel = val;
+		end);
+		self.KeystoneWindow:AddChild(minlevel);
+
+		local maxlevel = AceGUI:Create('Slider');
+		maxlevel:SetLabel('Min Level');
+		maxlevel:SetSliderValues(0, 50, 1);
+		maxlevel:SetValue(self.db.global.maxlevel);
+		maxlevel:SetCallback('OnValueChanged', function(self, event, val)
+			KeystoneManager.db.global.maxlevel = val;
+		end);
+		self.KeystoneWindow:AddChild(maxlevel);
+
 
 		local btn = AceGUI:Create('Button');
 		btn:SetWidth(100);
@@ -73,7 +102,7 @@ function KeystoneManager:ShowWindow(input)
 		local cols = {
 			{
 				['name'] = 'Character',
-				['width'] = 120,
+				['width'] = 140,
 				['align'] = 'LEFT',
 			},
 
@@ -85,19 +114,19 @@ function KeystoneManager:ShowWindow(input)
 
 			{
 				['name'] = 'Key',
-				['width'] = 120,
+				['width'] = 130,
 				['align'] = 'LEFT',
 			},
 
 			{
 				['name'] = 'Dungeon',
-				['width'] = 140,
+				['width'] = 175,
 				['align'] = 'LEFT',
 			},
 
 			{
 				['name'] = 'Level',
-				['width'] = 40,
+				['width'] = 45,
 				['align'] = 'LEFT',
 			},
 		}
@@ -226,13 +255,17 @@ function KeystoneManager:ReportKeys()
 
 	for char, key in pairs(self.db.global.keystones) do
 		local info = self:ExtractKeystoneInfo(key);
-
-		SendChatMessage(
-			self:NameWithoutRealm(char) .. ' - ' .. key .. ' - ' .. info.dungeonName .. ' +' .. info.level,
-			self.db.global.target,
-			nil,
-			target
-		);
+		if (info.lootEligible or not self.db.global.nondepleted) and
+			info.level >= self.db.global.minlevel and
+			info.level <= self.db.global.maxlevel
+		then
+			SendChatMessage(
+				self:NameWithoutRealm(char) .. ' - ' .. key .. ' - ' .. info.dungeonName .. ' +' .. info.level,
+				self.db.global.target,
+				nil,
+				target
+			);
+		end
 	end
 end
 
