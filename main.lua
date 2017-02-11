@@ -22,7 +22,8 @@ function KeystoneManager:OnInitialize()
 end
 
 function KeystoneManager:PLAYER_ENTERING_WORLD()
-	self:GetWeeklyBest();
+	self.bestTries = 0;
+	self.bestTimer = self:ScheduleTimer('GetWeeklyBest', 20);
 end
 
 function KeystoneManager:BAG_UPDATE()
@@ -31,7 +32,7 @@ end
 
 function KeystoneManager:ShowWindow(input)
 	if not self.KeystoneWindow then
-		KeystoneManager:GetWeeklyBest();
+		self:GetWeeklyBest();
 
 		self.KeystoneWindow = AceGUI:Create('Window');
 		self.KeystoneWindow:SetTitle('Keystone Manager');
@@ -135,7 +136,7 @@ function KeystoneManager:ShowWindow(input)
 		self:UpdateTable(self.ScrollTable);
 
 		self.ScrollTable:RegisterEvents({
-			['OnClick'] = function (rowFrame, cellFrame, data, cols, row, realrow, column, scrollingTable, ...)
+			['OnClick'] = function(rowFrame, cellFrame, data, cols, row, realrow, column, scrollingTable, ...)
 				local link = data[row][3];
 				if link then
 					GameTooltip:SetOwner(UIParent);
@@ -199,14 +200,13 @@ function KeystoneManager:GetKeystone(force)
 					local info = self:ExtractKeystoneInfo(link);
 					local oldInfo = self:ExtractKeystoneInfo(oldKey);
 
-					if force or oldInfo == nil or (info.dungeonId ~= oldInfo.dungeonId and info.level ~= oldInfo.level) then --keystone has changed
-						SendChatMessage(
-							'New Keystone - ' .. link .. ' - ' .. info.dungeonName .. ' +' .. info.level,
-							'PARTY'
-						);
-						self.db.global.keystones[name] = link;
-						self:GetWeeklyBest();
-						self:UpdateTable(self.ScrollTable);
+					if force or oldInfo == nil or (info.dungeonId ~= oldInfo.dungeonId and
+							info.level ~= oldInfo.level and info.level ~= 0) then --keystone has changed
+					SendChatMessage('New Keystone - ' .. link .. ' - ' .. info.dungeonName .. ' +' .. info.level,
+						'PARTY');
+					self.db.global.keystones[name] = link;
+					self:GetWeeklyBest();
+					self:UpdateTable(self.ScrollTable);
 					end
 					return link;
 				end
@@ -224,6 +224,7 @@ function KeystoneManager:GetWeeklyBest()
 	end
 
 	C_ChallengeMode.RequestMapInfo();
+	C_ChallengeMode.RequestRewards();
 	local mapTable = C_ChallengeMode.GetMapTable();
 	local best = 0;
 	for i, mapId in pairs(mapTable) do
@@ -233,7 +234,12 @@ function KeystoneManager:GetWeeklyBest()
 			best = weeklyBestLevel;
 		end
 	end
-
+	if best == 0 then
+		if self.bestTries < 5 then
+			self.bestTries = self.bestTries + 1;
+			self.bestTimer = self:ScheduleTimer('GetWeeklyBest', 3);
+		end
+	end
 	self.db.global.weeklyBest[name] = best;
 	return best;
 end
@@ -256,15 +262,13 @@ function KeystoneManager:ReportKeys()
 	for char, key in pairs(self.db.global.keystones) do
 		local info = self:ExtractKeystoneInfo(key);
 		if (info.lootEligible or not self.db.global.nondepleted) and
-			info.level >= self.db.global.minlevel and
-			info.level <= self.db.global.maxlevel
+				info.level >= self.db.global.minlevel and
+				info.level <= self.db.global.maxlevel
 		then
-			SendChatMessage(
-				self:NameWithoutRealm(char) .. ' - ' .. key .. ' - ' .. info.dungeonName .. ' +' .. info.level,
+			SendChatMessage(self:NameWithoutRealm(char) .. ' - ' .. key .. ' - ' .. info.dungeonName .. ' +' .. info.level,
 				self.db.global.target,
 				nil,
-				target
-			);
+				target);
 		end
 	end
 end
@@ -320,7 +324,8 @@ function KeystoneManager:ExtractKeystoneInfo(link)
 	local dungeonId = tonumber(parts[15]);
 	local level = tonumber(parts[16]);
 	local numAffixes = ({0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 3, 3, 3})[level];
-	local lootEligible = (tonumber(parts[17 + numAffixes]) == 1)
+	local ready = 0x400000;
+	local lootEligible = bit.band(parts[12], ready) == ready;
 	local dungeonName = C_ChallengeMode.GetMapInfo(dungeonId);
 
 	return {
