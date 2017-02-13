@@ -1,6 +1,6 @@
 ## Title: KeystoneManager
 ## Notes: A list of your keystones
-## Version: 7.1.5
+## Version: 7.1.5.2
 ## Author: Kaminaris
 ## Interface: 70100
 ## SavedVariables: KeystoneManagerDb
@@ -18,5 +18,7 @@ Libs\AceConsole-3.0\AceConsole-3.0.xml
 Libs\LibTextTable-1.1\Lib.xml
 Libs\lib-st\lib-st.xml
 Libs\lib-st\AceGUIWidget-lib-st.lua
+Libs\LibDataBroker-1.1\LibDataBroker-1.1.lua
+Libs\LibDBIcon-1.0\lib.xml
 
 main.lua

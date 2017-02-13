@@ -1,5 +1,7 @@
 KeystoneManager = LibStub('AceAddon-3.0'):NewAddon('KeystoneManager', 'AceConsole-3.0', 'AceEvent-3.0', 'AceTimer-3.0');
 AceGUI = LibStub('AceGUI-3.0');
+local icon = LibStub('LibDBIcon-1.0');
+local ldb = LibStub:GetLibrary('LibDataBroker-1.1');
 
 local defaults = {
 	global = {
@@ -8,9 +10,64 @@ local defaults = {
 		whisper = '',
 		nondepleted = false,
 		minlevel = 0,
-		maxlevel = 20
+		maxlevel = 20,
+		ldbStorage = {}
 	}
 };
+
+local kmldbObject = {
+	type = 'launcher',
+	text = 'Keystone Manager',
+	label = 'Keystone Manager',
+	icon = 'Interface\\Icons\\INV_Relics_Hourglass',
+	OnClick = function() KeystoneManager:ShowWindow(); end,
+	OnTooltipShow = function(tooltip)
+
+		local info = KeystoneManager:GetCurrentKeystoneInfo();
+		if info then
+			local name = KeystoneManager:NameAndRealm();
+			tooltip:AddDoubleLine(
+				format("|cffffffff%s|r", KeystoneManager:NameWithoutRealm(name)),
+				KeystoneManager:FormatKeystone(info)
+			);
+			tooltip:AddLine(' ');
+		end
+
+
+		for char, key in pairs(KeystoneManager.db.global.keystones) do
+			local info = KeystoneManager:ExtractKeystoneInfo(key);
+
+			tooltip:AddDoubleLine(
+				format("|cffffffff%s|r", KeystoneManager:NameWithoutRealm(char)),
+				KeystoneManager:FormatKeystone(info)
+			);
+		end
+	end,
+};
+
+local dungeonNames = {
+	[1456] = 'Eye of Azshara',
+	[1466] = 'Darkheart Thicket',
+	[1501] = 'Black Rook Hold',
+	[1477] = 'Halls of Valor',
+	[1458] = 'Neltharion\'s Lair',
+	[1493] = 'Vault of the Wardens',
+	[1492] = 'Maw of Souls',
+	[1516] = 'The Arcway',
+	[1571] = 'Court of Stars',
+}
+
+local shortNames = {
+	[1456] = 'EOA',
+	[1466] = 'DHT',
+	[1501] = 'BRH',
+	[1477] = 'HOV',
+	[1458] = 'NL',
+	[1493] = 'VOTW',
+	[1492] = 'MOS',
+	[1516] = 'ARC',
+	[1571] = 'COS',
+}
 
 function KeystoneManager:OnInitialize()
 	self.db = LibStub('AceDB-3.0'):New('KeystoneManagerDb', defaults);
@@ -19,6 +76,14 @@ function KeystoneManager:OnInitialize()
 	self:RegisterChatCommand('keyprint', 'PrintKeystone');
 	self:RegisterEvent('BAG_UPDATE');
 	self:RegisterEvent('PLAYER_ENTERING_WORLD');
+	ldb:NewDataObject('KeystoneManager', kmldbObject);
+	icon:Register('KeystoneManager', kmldbObject, self.db.global.ldbStorage);
+
+	local info = self:GetCurrentKeystoneInfo();
+	if info then
+		kmldbObject.text = self:GetShortInfo(info);
+	end
+
 end
 
 function KeystoneManager:PLAYER_ENTERING_WORLD()
@@ -82,7 +147,7 @@ function KeystoneManager:ShowWindow(input)
 		self.KeystoneWindow:AddChild(minlevel);
 
 		local maxlevel = AceGUI:Create('Slider');
-		maxlevel:SetLabel('Min Level');
+		maxlevel:SetLabel('Max Level');
 		maxlevel:SetSliderValues(0, 50, 1);
 		maxlevel:SetValue(self.db.global.maxlevel);
 		maxlevel:SetCallback('OnValueChanged', function(self, event, val)
@@ -137,11 +202,13 @@ function KeystoneManager:ShowWindow(input)
 
 		self.ScrollTable:RegisterEvents({
 			['OnClick'] = function(rowFrame, cellFrame, data, cols, row, realrow, column, scrollingTable, ...)
-				local link = data[row][3];
-				if link then
-					GameTooltip:SetOwner(UIParent);
-					GameTooltip:SetHyperlink(link);
-					GameTooltip:Show();
+				if data[row] then
+					local link = data[row][3];
+					if link then
+						GameTooltip:SetOwner(UIParent);
+						GameTooltip:SetHyperlink(link);
+						GameTooltip:Show();
+					end
 				end
 			end,
 		});
@@ -181,6 +248,16 @@ function KeystoneManager:ShowWindow(input)
 	self.KeystoneWindow:Show();
 end
 
+function KeystoneManager:GetCurrentKeystoneInfo()
+	local name = KeystoneManager:NameAndRealm();
+	local keystone = KeystoneManager.db.global.keystones[name];
+	if keystone then
+		return KeystoneManager:ExtractKeystoneInfo(keystone);
+	else
+		return nil
+	end
+end
+
 function KeystoneManager:GetKeystone(force)
 	force = force or false;
 	local name = self:NameAndRealm();
@@ -202,7 +279,7 @@ function KeystoneManager:GetKeystone(force)
 
 					if force or oldInfo == nil or (info.dungeonId ~= oldInfo.dungeonId and
 							info.level ~= oldInfo.level and info.level ~= 0) then --keystone has changed
-					SendChatMessage('New Keystone - ' .. link .. ' - ' .. info.dungeonName .. ' +' .. info.level,
+					SendChatMessage('New Keystone - ' .. info.dungeonName .. ' +' .. info.level,
 						'PARTY');
 					self.db.global.keystones[name] = link;
 					self:GetWeeklyBest();
@@ -265,7 +342,7 @@ function KeystoneManager:ReportKeys()
 				info.level >= self.db.global.minlevel and
 				info.level <= self.db.global.maxlevel
 		then
-			SendChatMessage(self:NameWithoutRealm(char) .. ' - ' .. key .. ' - ' .. info.dungeonName .. ' +' .. info.level,
+			SendChatMessage(self:NameWithoutRealm(char) .. ' - ' .. info.dungeonName .. ' +' .. info.level,
 				self.db.global.target,
 				nil,
 				target);
@@ -289,17 +366,18 @@ function KeystoneManager:UpdateTable(table)
 		local info = self:ExtractKeystoneInfo(key);
 		local weeklyBest = self.db.global.weeklyBest[char];
 
-		local color = '|cff1eff00';
+		local quality = 2;
 		if not info.lootEligible then
-			color = '|cff9d9d9d';
+			quality = 0;
 		end
+		local _, _, _, color = GetItemQualityColor(quality);
 
 		tinsert(tableData, {
 			self:NameWithoutRealm(char),
 			weeklyBest,
 			key,
-			color .. info.dungeonName,
-			'+' .. info.level
+			format('|c%s%s|r', color, info.dungeonName),
+			info.level
 		});
 	end
 
@@ -311,7 +389,7 @@ function KeystoneManager:NameAndRealm()
 end
 
 function KeystoneManager:NameWithoutRealm(name)
-	return gsub(name, "%-[^|]+", "");
+	return gsub(name or '', "%-[^|]+", "");
 end
 
 function KeystoneManager:ExtractKeystoneInfo(link)
@@ -334,4 +412,24 @@ function KeystoneManager:ExtractKeystoneInfo(link)
 		level = level,
 		lootEligible = lootEligible,
 	}
+end
+
+function KeystoneManager:FormatKeystone(info)
+	local quality = 2;
+	if not info.lootEligible then
+		quality = 0;
+	end
+
+	local _, _, _, color = GetItemQualityColor(quality);
+	return format('|c%s%s|r +%d', color, info.dungeonName, info.level);
+end
+
+function KeystoneManager:GetShortInfo(info)
+	local quality = 2;
+	if not info.lootEligible then
+		quality = 0;
+	end
+
+	local _, _, _, color = GetItemQualityColor(quality);
+	return format('|c%s%s|r +%d', color, shortNames[info.dungeonId], info.level);
 end
