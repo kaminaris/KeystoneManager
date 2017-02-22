@@ -27,6 +27,28 @@ local shortNames = {
 	[1571] = 'COS',
 }
 
+--[18:50:19] 459 Eye of Azshara (Mythic Keystone)
+--[18:50:19] 460 Darkheart Thicket (Mythic Keystone)
+--[18:50:19] 461 Halls of Valor (Mythic Keystone)
+--[18:50:19] 462 Neltharion's Lair (Mythic Keystone)
+--[18:50:19] 464 Vault of the Wardens (Mythic Keystone)
+--[18:50:19] 463 Black Rook Hold (Mythic Keystone)
+--[18:50:19] 465 Maw of Souls (Mythic Keystone)
+--[18:50:19] 466 Court of Stars (Mythic Keystone)
+--[18:50:19] 467 The Arcway (Mythic Keystone)
+
+local activities = {
+	[1456] = 459,
+	[1466] = 460,
+	[1477] = 461,
+	[1458] = 462,
+	[1493] = 464,
+	[1501] = 463,
+	[1492] = 465,
+	[1571] = 466,
+	[1516] = 467,
+}
+
 local options = {
 	type = 'group',
 	name = 'Keystone Manager Options',
@@ -260,9 +282,16 @@ function KeystoneManager:ShowWindow(input)
 				if data[row] then
 					local link = data[row][3];
 					if link then
-						GameTooltip:SetOwner(UIParent);
-						GameTooltip:SetHyperlink(link);
-						GameTooltip:Show();
+						if IsAltKeyDown() then
+							local info = KeystoneManager:ExtractKeystoneInfo(link);
+							KeystoneManager:CreateGroup(info);
+						elseif IsShiftKeyDown() then
+							HandleModifiedItemClick(link);
+						else
+							GameTooltip:SetOwner(UIParent);
+							GameTooltip:SetHyperlink(link);
+							GameTooltip:Show();
+						end
 					end
 				end
 			end,
@@ -475,6 +504,14 @@ function KeystoneManager:ClearKeystones()
 	self:UpdateTable(self.ScrollTable);
 	self:RefreshDataText()
 end
+
+function KeystoneManager:CreateGroup(info)
+	local groupName = info.dungeonName .. ' +' .. info.level;
+	local activity = activities[info.dungeonId];
+	C_LFGList.CreateListing(activity, groupName, 0, 0, '', '', false);
+end
+
+-- Helpers
 
 function KeystoneManager:UpdateTable(table)
 	if not table then

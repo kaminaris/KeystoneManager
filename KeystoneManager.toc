@@ -1,6 +1,6 @@
 ## Title: KeystoneManager
 ## Notes: A list of your keystones
-## Version: 7.1.5.3
+## Version: 7.1.5.4
 ## Author: Kaminaris
 ## Interface: 70100
 ## SavedVariables: KeystoneManagerDb
