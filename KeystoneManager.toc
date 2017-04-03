@@ -1,8 +1,8 @@
 ## Title: KeystoneManager
 ## Notes: A list of your keystones
-## Version: 7.1.5.4
+## Version: 7.2
 ## Author: Kaminaris
-## Interface: 70100
+## Interface: 70200
 ## SavedVariables: KeystoneManagerDb
 
 Libs\LibStub\LibStub.lua

@@ -3,28 +3,36 @@ AceGUI = LibStub('AceGUI-3.0');
 local icon = LibStub('LibDBIcon-1.0');
 local ldb = LibStub:GetLibrary('LibDataBroker-1.1');
 
+
+--[18:40:31] Eye of Azshara 197 2100 1498161 1467575
+--[18:40:31] Darkheart Thicket 198 1800 1411867 1389212
+--[18:40:31] Black Rook Hold 199 2340 1411865 1399464
+--[18:40:31] Halls of Valor 200 2700 1498162 1454826
+--[18:40:31] Neltharion's Lair 206 1980 1450576 1445178
+--[18:40:31] Vault of the Wardens 207 1980 1411870 1389449
+--[18:40:31] Maw of Souls 208 1440 1411868 1391080
+--[18:40:31] The Arcway 209 2700 1411869 1395129
+--[18:40:31] Court of Stars 210 1800 1498160 1477131
+--[18:40:31] Return to Karazhan: Lower 227 2340 1537287 1537272
+--[18:40:31] Cathedral of Eternal Night 233 1980 1616925 1616802
+--[18:40:31] Return to Karazhan: Upper 234 2340 1537287 1537272
+
 local dungeonNames = {
-	[1456] = 'Eye of Azshara',
-	[1466] = 'Darkheart Thicket',
-	[1501] = 'Black Rook Hold',
-	[1477] = 'Halls of Valor',
-	[1458] = 'Neltharion\'s Lair',
-	[1493] = 'Vault of the Wardens',
-	[1492] = 'Maw of Souls',
-	[1516] = 'The Arcway',
-	[1571] = 'Court of Stars',
 }
 
 local shortNames = {
-	[1456] = 'EOA',
-	[1466] = 'DHT',
-	[1501] = 'BRH',
-	[1477] = 'HOV',
-	[1458] = 'NL',
-	[1493] = 'VOTW',
-	[1492] = 'MOS',
-	[1516] = 'ARC',
-	[1571] = 'COS',
+	[197] = 'EOA',
+	[198] = 'DHT',
+	[199] = 'BRH',
+	[200] = 'HOV',
+	[206] = 'NL',
+	[207] = 'VOTW',
+	[208] = 'MOS',
+	[209] = 'ARC',
+	[210] = 'COS',
+	[233] = 'COEN',
+	[227] = 'KARA:L',
+	[234] = 'KARA:U',
 }
 
 --[18:50:19] 459 Eye of Azshara (Mythic Keystone)
@@ -156,6 +164,8 @@ function KeystoneManager:OnInitialize()
 	self:RegisterChatCommand('keyprint', 'PrintKeystone');
 	self:RegisterEvent('BAG_UPDATE');
 	self:RegisterEvent('PLAYER_ENTERING_WORLD');
+	self:GetMapInfo();
+	self:RemoveOldKeystones();
 	ldb:NewDataObject('KeystoneManager', kmldbObject);
 	icon:Register('KeystoneManager', kmldbObject, self.db.global.ldbStorage);
 
@@ -169,6 +179,30 @@ end
 
 function KeystoneManager:BAG_UPDATE()
 	self:GetKeystone();
+end
+
+function KeystoneManager:GetMapInfo()
+	dungeonNames = {};
+	local maps = C_ChallengeMode.GetMapTable();
+	for i = 1, #maps do
+		local name, id, timeLimit, texture, backgroundTexture = C_ChallengeMode.GetMapInfo(maps[i]);
+		dungeonNames[id] = name;
+	end
+end
+
+function KeystoneManager:RemoveOldKeystones()
+	for char, key in pairs(self.db.global.keystones) do
+		if not key then
+			self.db.global.keystones[char] = nil;
+			return;
+		end
+
+		local parts = { strsplit(':', key) }
+		local dungeonId = tonumber(parts[2]);
+		if not dungeonNames[dungeonId] then
+			self.db.global.keystones[char] = nil;
+		end
+	end
 end
 
 function KeystoneManager:ShowWindow(input)
@@ -245,31 +279,31 @@ function KeystoneManager:ShowWindow(input)
 		local cols = {
 			{
 				['name'] = 'Character',
-				['width'] = 140,
+				['width'] = 120,
 				['align'] = 'LEFT',
 			},
 
 			{
 				['name'] = 'Weekly Best',
-				['width'] = 80,
+				['width'] = 30,
 				['align'] = 'LEFT',
 			},
 
 			{
 				['name'] = 'Key',
-				['width'] = 130,
+				['width'] = 220,
 				['align'] = 'LEFT',
 			},
 
 			{
 				['name'] = 'Dungeon',
-				['width'] = 175,
+				['width'] = 165,
 				['align'] = 'LEFT',
 			},
 
 			{
 				['name'] = 'Level',
-				['width'] = 45,
+				['width'] = 35,
 				['align'] = 'LEFT',
 			},
 		}
@@ -561,11 +595,11 @@ function KeystoneManager:ExtractKeystoneInfo(link)
 
 	local parts = { strsplit(':', link) }
 
-	local dungeonId = tonumber(parts[15]);
-	local level = tonumber(parts[16]);
-	local numAffixes = ({0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 3, 3, 3})[level];
-	local ready = 0x400000;
-	local lootEligible = bit.band(parts[12], ready) == ready;
+	local dungeonId = tonumber(parts[2]);
+	local level = tonumber(parts[3]);
+	local lootEligible = tonumber(parts[4]) == 1;
+
+	-- local name, id, timeLimit, texture, backgroundTexture = C_ChallengeMode.GetMapInfo(mapChallengeModeID)
 	local dungeonName = C_ChallengeMode.GetMapInfo(dungeonId);
 
 	return {
