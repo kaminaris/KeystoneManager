@@ -35,26 +35,32 @@ local shortNames = {
 	[234] = 'KARA:U',
 }
 
---[18:50:19] 459 Eye of Azshara (Mythic Keystone)
---[18:50:19] 460 Darkheart Thicket (Mythic Keystone)
---[18:50:19] 461 Halls of Valor (Mythic Keystone)
---[18:50:19] 462 Neltharion's Lair (Mythic Keystone)
---[18:50:19] 464 Vault of the Wardens (Mythic Keystone)
---[18:50:19] 463 Black Rook Hold (Mythic Keystone)
---[18:50:19] 465 Maw of Souls (Mythic Keystone)
---[18:50:19] 466 Court of Stars (Mythic Keystone)
---[18:50:19] 467 The Arcway (Mythic Keystone)
+--[00:54:52] 459 Eye of Azshara (Mythic Keystone)
+--[00:54:52] 460 Darkheart Thicket (Mythic Keystone)
+--[00:54:52] 461 Halls of Valor (Mythic Keystone)
+--[00:54:52] 462 Neltharion's Lair (Mythic Keystone)
+--[00:54:52] 464 Vault of the Wardens (Mythic Keystone)
+--[00:54:52] 463 Black Rook Hold (Mythic Keystone)
+--[00:54:52] 465 Maw of Souls (Mythic Keystone)
+--[00:54:52] 466 Court of Stars (Mythic Keystone)
+--[00:54:52] 467 The Arcway (Mythic Keystone)
+--[00:54:52] 471 Lower Karazhan (Mythic+)
+--[00:54:52] 473 Upper Karazhan (Mythic+)
+--[00:54:52] 476 Cathedral of Eternal Night (Mythic+)
 
 local activities = {
-	[1456] = 459,
-	[1466] = 460,
-	[1477] = 461,
-	[1458] = 462,
-	[1493] = 464,
-	[1501] = 463,
-	[1492] = 465,
-	[1571] = 466,
-	[1516] = 467,
+	[197] = 459,
+	[198] = 460,
+	[199] = 463,
+	[200] = 461,
+	[206] = 462,
+	[207] = 464,
+	[208] = 465,
+	[209] = 467,
+	[210] = 466,
+	[233] = 476,
+	[227] = 471,
+	[234] = 473,
 }
 
 local options = {
