@@ -320,7 +320,7 @@ function KeystoneManager:ShowWindow(input)
 		self.ScrollTable:RegisterEvents({
 			['OnClick'] = function(rowFrame, cellFrame, data, cols, row, realrow, column, scrollingTable, ...)
 				if data[row] then
-					local link = data[row][3];
+					local link = data[realrow][3];
 					if link then
 						if IsAltKeyDown() then
 							local info = KeystoneManager:ExtractKeystoneInfo(link);
