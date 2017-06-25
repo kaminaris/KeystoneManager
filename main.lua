@@ -122,7 +122,6 @@ local defaults = {
 		keystones = {},
 		target = 'GUILD',
 		whisper = '',
-		nondepleted = false,
 		minlevel = 0,
 		maxlevel = 20,
 		ldbStorage = {
@@ -245,14 +244,6 @@ function KeystoneManager:ShowWindow(input)
 			KeystoneManager.db.global.whisper = text;
 		end);
 		self.KeystoneWindow:AddChild(whisper);
-
-		local nondepleted = AceGUI:Create('CheckBox');
-		nondepleted:SetLabel('Exclude depleted');
-		nondepleted:SetValue(self.db.global.nondepleted);
-		nondepleted:SetCallback('OnValueChanged', function(self, event, val)
-			KeystoneManager.db.global.nondepleted = val;
-		end);
-		self.KeystoneWindow:AddChild(nondepleted);
 
 		local minlevel = AceGUI:Create('Slider');
 		minlevel:SetLabel('Min Level');
@@ -388,8 +379,7 @@ function KeystoneManager:GetKeysText()
 	local text = '';
 	for char, key in pairs(self.db.global.keystones) do
 		local info = self:ExtractKeystoneInfo(key);
-		if (info.lootEligible or not self.db.global.nondepleted) and
-			info.level >= self.db.global.minlevel and
+		if 	info.level >= self.db.global.minlevel and
 			info.level <= self.db.global.maxlevel and
 			not self.db.global.excludes[info.dungeonId]
 		then
@@ -525,8 +515,7 @@ function KeystoneManager:ReportKeys()
 
 	for char, key in pairs(self.db.global.keystones) do
 		local info = self:ExtractKeystoneInfo(key);
-		if (info.lootEligible or not self.db.global.nondepleted) and
-			info.level >= self.db.global.minlevel and
+		if  info.level >= self.db.global.minlevel and
 			info.level <= self.db.global.maxlevel and
 			not self.db.global.excludes[info.dungeonId]
 		then
@@ -603,7 +592,6 @@ function KeystoneManager:ExtractKeystoneInfo(link)
 
 	local dungeonId = tonumber(parts[2]);
 	local level = tonumber(parts[3]);
-	local lootEligible = tonumber(parts[4]) == 1;
 
 	-- local name, id, timeLimit, texture, backgroundTexture = C_ChallengeMode.GetMapInfo(mapChallengeModeID)
 	local dungeonName = C_ChallengeMode.GetMapInfo(dungeonId);
@@ -611,8 +599,7 @@ function KeystoneManager:ExtractKeystoneInfo(link)
 	return {
 		dungeonId = dungeonId,
 		dungeonName = dungeonName,
-		level = level,
-		lootEligible = lootEligible,
+		level = level
 	}
 end
 
@@ -632,9 +619,6 @@ function KeystoneManager:GetKeystoneColor(info)
 	end
 
 	local quality = 2;
-	if not info.lootEligible then
-		quality = 0;
-	end
 
 	local _, _, _, color = GetItemQualityColor(quality);
 
