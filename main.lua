@@ -33,6 +33,7 @@ local shortNames = {
 	[233] = 'COEN',
 	[227] = 'KARA:L',
 	[234] = 'KARA:U',
+	[239] = 'SOTT',
 }
 
 --[00:54:52] 459 Eye of Azshara (Mythic Keystone)
@@ -61,6 +62,7 @@ local activities = {
 	[233] = 476,
 	[227] = 471,
 	[234] = 473,
+	[239] = 486,
 }
 
 local options = {
@@ -439,6 +441,7 @@ function KeystoneManager:GetKeystone(force)
 	end
 	local keystone = self.db.global.keystones[name];
 
+	local found = false;
 	for bag = 0, NUM_BAG_SLOTS do
 		local numSlots = GetContainerNumSlots(bag);
 		if numSlots ~= 0 then
@@ -462,10 +465,16 @@ function KeystoneManager:GetKeystone(force)
 						self:UpdateTable(self.ScrollTable);
 						self:RefreshDataText();
 					end
+					found = true;
 					return link;
 				end
 			end
 		end
+	end
+
+	if not found then
+		self.db.global.keystones[name] = nil;
+		return nil;
 	end
 
 	return keystone;
