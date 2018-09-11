@@ -1,24 +1,9 @@
 KeystoneManager = LibStub('AceAddon-3.0'):NewAddon('KeystoneManager', 'AceConsole-3.0', 'AceEvent-3.0', 'AceTimer-3.0');
-AceGUI = LibStub('AceGUI-3.0');
+---@type StdUi
+local StdUi = LibStub('StdUi');
+
 local icon = LibStub('LibDBIcon-1.0');
 local ldb = LibStub:GetLibrary('LibDataBroker-1.1');
-
-
---[18:40:31] Eye of Azshara 197 2100 1498161 1467575
---[18:40:31] Darkheart Thicket 198 1800 1411867 1389212
---[18:40:31] Black Rook Hold 199 2340 1411865 1399464
---[18:40:31] Halls of Valor 200 2700 1498162 1454826
---[18:40:31] Neltharion's Lair 206 1980 1450576 1445178
---[18:40:31] Vault of the Wardens 207 1980 1411870 1389449
---[18:40:31] Maw of Souls 208 1440 1411868 1391080
---[18:40:31] The Arcway 209 2700 1411869 1395129
---[18:40:31] Court of Stars 210 1800 1498160 1477131
---[18:40:31] Return to Karazhan: Lower 227 2340 1537287 1537272
---[18:40:31] Cathedral of Eternal Night 233 1980 1616925 1616802
---[18:40:31] Return to Karazhan: Upper 234 2340 1537287 1537272
-
-local dungeonNames = {
-}
 
 local shortNames = {
 	[197] = 'EOA',
@@ -34,20 +19,19 @@ local shortNames = {
 	[227] = 'KARA:L',
 	[234] = 'KARA:U',
 	[239] = 'SOTT',
+
+	[244] = 'AD',
+	[245] = 'FH',
+	[246] = 'TD',
+	[247] = 'ML',
+	[248] = 'WM',
+	[249] = 'KR',
+	[250] = 'TOS',
+	[251] = 'UNDR',
+	[252] = 'SOTS',
+	[353] = 'SIEGE',
 }
 
---[00:54:52] 459 Eye of Azshara (Mythic Keystone)
---[00:54:52] 460 Darkheart Thicket (Mythic Keystone)
---[00:54:52] 461 Halls of Valor (Mythic Keystone)
---[00:54:52] 462 Neltharion's Lair (Mythic Keystone)
---[00:54:52] 464 Vault of the Wardens (Mythic Keystone)
---[00:54:52] 463 Black Rook Hold (Mythic Keystone)
---[00:54:52] 465 Maw of Souls (Mythic Keystone)
---[00:54:52] 466 Court of Stars (Mythic Keystone)
---[00:54:52] 467 The Arcway (Mythic Keystone)
---[00:54:52] 471 Lower Karazhan (Mythic+)
---[00:54:52] 473 Upper Karazhan (Mythic+)
---[00:54:52] 476 Cathedral of Eternal Night (Mythic+)
 
 local activities = {
 	[197] = 459,
@@ -63,72 +47,31 @@ local activities = {
 	[227] = 471,
 	[234] = 473,
 	[239] = 486,
-}
 
-local options = {
-	type = 'group',
-	name = 'Keystone Manager Options',
-	inline = false,
-	args = {
-		enableIcon = {
-			name = 'Enable minimap icon',
-			desc = 'Enables / disables minimap icon',
-			type = 'toggle',
-			width = 'full',
-			set = function(info, val)
-				KeystoneManager.db.global.ldbStorage.hide = not val;
-				if KeystoneManager.db.global.ldbStorage.hide then
-					icon:Hide('KeystoneManager');
-				else
-					icon:Show('KeystoneManager');
-				end
-			end,
-			get = function(info) return not KeystoneManager.db.global.ldbStorage.hide end
-		},
-		announce = {
-			name = 'Announce new key in party channel',
-			desc = 'Announce new key in party channel',
-			type = 'toggle',
-			width = 'full',
-			set = function(info, val)
-				KeystoneManager.db.global.announce = val;
-			end,
-			get = function(info) return KeystoneManager.db.global.announce end
-		},
-		excludeDungeons = {
-			type = 'multiselect',
-			name = 'Exclude dungeons from report',
-			values = function()
-				return dungeonNames;
-			end,
-			get = function(self, key)
-				if not KeystoneManager.db.global.excludes then
-					KeystoneManager.db.global.excludes = {};
-				end
-				return KeystoneManager.db.global.excludes[key];
-			end,
-			set = function(self, key, val)
-				KeystoneManager.db.global.excludes[key] = val;
-				KeystoneManager:UpdateTable(KeystoneManager.ScrollTable);
-				KeystoneManager:RefreshDataText();
-			end,
-		},
-	},
+
+	[244] = 502,
+	[245] = 518,
+	[246] = 526,
+	[247] = 510,
+	[248] = 530,
+	[249] = 514,
+	[250] = 504,
+	[251] = 507,
+	[252] = 522,
+	[353] = 534,
 }
 
 local defaults = {
-	global = {
-		enabled = true,
-		announce = true,
-		excludes = {},
-		keystones = {},
-		target = 'GUILD',
-		whisper = '',
-		minlevel = 0,
-		maxlevel = 20,
-		ldbStorage = {
-			hide = false
-		}
+	enabled = true,
+	announce = true,
+	excludes = {},
+	keystones = {},
+	target = 'GUILD',
+	whisper = '',
+	minLevel = 0,
+	maxLevel = 20,
+	ldbStorage = {
+		hide = false
 	}
 };
 
@@ -141,251 +84,257 @@ local kmldbObject = {
 	OnTooltipShow = function(tooltip)
 
 		local info = KeystoneManager:GetCurrentKeystoneInfo();
+		local name = KeystoneManager:NameAndRealm();
+
 		if info then
-			local name = KeystoneManager:NameAndRealm();
+			tooltip:AddLine('Current:');
 			tooltip:AddDoubleLine(
-				format("|cffffffff%s|r", KeystoneManager:NameWithoutRealm(name)),
+				format('|cffffffff%s|r', KeystoneManager:NameWithoutRealm(name)),
 				KeystoneManager:FormatKeystone(info)
 			);
 			tooltip:AddLine(' ');
 		end
 
 
-		for char, key in pairs(KeystoneManager.db.global.keystones) do
-			local info = KeystoneManager:ExtractKeystoneInfo(key);
-
-			tooltip:AddDoubleLine(
-				format("|cffffffff%s|r", KeystoneManager:NameWithoutRealm(char)),
-				KeystoneManager:FormatKeystone(info)
-			);
+		tooltip:AddLine('Other Keys:');
+		for char, key in pairs(KeystoneManager.db.keystones) do
+			if name ~= char then
+				tooltip:AddDoubleLine(
+					format('|cffffffff%s|r', KeystoneManager:NameWithoutRealm(char)),
+					KeystoneManager:FormatKeystone(key)
+				);
+			end
 		end
 	end,
 };
 
+function KeystoneManager:RegisterOptionWindow()
+	if self.optionsFrame then
+		return;
+	end
+	
+	self.optionsFrame = StdUi:PanelWithTitle(UIParent, 100, 100, 'Keystone Manager');
+	self.optionsFrame.name = 'Keystone Manager';
+	self.optionsFrame:Hide();
+
+	local enabled = StdUi:Checkbox(self.optionsFrame, 'Enable Addon');
+	if self.db.enabled then enabled:SetChecked(true); end
+	enabled.OnValueChanged = function(_, flag) KeystoneManager.db.enabled = flag; end
+	
+	local announce = StdUi:Checkbox(self.optionsFrame, 'Announce new key in party channel');
+	if self.db.announce then announce:SetChecked(true);	end
+	announce.OnValueChanged = function(_, flag)	KeystoneManager.db.announce = flag;	end
+
+
+	StdUi:GlueTop(enabled, self.optionsFrame, 10, -40, 'LEFT');
+	StdUi:GlueBelow(announce, enabled, 0, -10, 'LEFT');
+
+	InterfaceOptions_AddCategory(self.optionsFrame);
+end
+
 function KeystoneManager:OnInitialize()
-	LibStub('AceConfig-3.0'):RegisterOptionsTable('KeystoneManager', options, {'/kmconfig'});
-	self.db = LibStub('AceDB-3.0'):New('KeystoneManagerDb', defaults);
-	self.optionsFrame = LibStub('AceConfigDialog-3.0'):AddToBlizOptions('KeystoneManager', 'Keystone Manager');
+	if not KeystoneManagerDb or type(KeystoneManagerDb) ~= 'table' or KeystoneManagerDb.global then
+		KeystoneManagerDb = defaults;
+	end
+
+	self.db = KeystoneManagerDb;
+	
+	self:RegisterOptionWindow();
+
 	self:RegisterChatCommand('keystonemanager', 'ShowWindow');
 	self:RegisterChatCommand('keylist', 'ShowWindow');
 	self:RegisterChatCommand('keyprint', 'PrintKeystone');
-	self:RegisterEvent('BAG_UPDATE');
+
 	self:RegisterEvent('PLAYER_ENTERING_WORLD');
+
+	self:RegisterEvent('CHALLENGE_MODE_MAPS_UPDATE', 'UpdateWeeklyBest');
+	self:RegisterEvent('CHALLENGE_MODE_MEMBER_INFO_UPDATED', 'UpdateWeeklyBest');
+	self:RegisterEvent('CHALLENGE_MODE_LEADERS_UPDATE', 'UpdateWeeklyBest');
+	self:RegisterEvent('CHALLENGE_MODE_COMPLETED', 'UpdateWeeklyBestAndKeystone');
+end
+
+-- Can't really request it faster
+function KeystoneManager:PLAYER_ENTERING_WORLD()
+	C_MythicPlus.RequestMapInfo();
 	self:GetMapInfo();
-	self:RemoveOldKeystones();
+	for mapId, mapName in pairs(self.mapNames) do
+		C_ChallengeMode.RequestLeaders(mapId);
+	end
+
 	ldb:NewDataObject('KeystoneManager', kmldbObject);
-	icon:Register('KeystoneManager', kmldbObject, self.db.global.ldbStorage);
+	icon:Register('KeystoneManager', kmldbObject, self.db.ldbStorage);
 
 	self:RefreshDataText();
-end
-
-function KeystoneManager:PLAYER_ENTERING_WORLD()
-	self.bestTries = 0;
-	self.bestTimer = self:ScheduleTimer('GetWeeklyBest', 20);
-end
-
-function KeystoneManager:BAG_UPDATE()
 	self:GetKeystone();
 end
 
 function KeystoneManager:GetMapInfo()
-	dungeonNames = {};
+	self.mapNames = {};
 	local maps = C_ChallengeMode.GetMapTable();
+	
 	for i = 1, #maps do
-		local name, id, timeLimit, texture, backgroundTexture = C_ChallengeMode.GetMapInfo(maps[i]);
-		dungeonNames[id] = name;
+		local name, id = C_ChallengeMode.GetMapUIInfo(maps[i]);
+		self.mapNames[id] = name;
 	end
 end
 
-function KeystoneManager:RemoveOldKeystones()
-	for char, key in pairs(self.db.global.keystones) do
-		if not key then
-			self.db.global.keystones[char] = nil;
-			return;
-		end
-
-		local parts = { strsplit(':', key) }
-		local dungeonId = tonumber(parts[2]);
-		if not dungeonNames[dungeonId] then
-			self.db.global.keystones[char] = nil;
-		end
-	end
+function KeystoneManager:UpdateWeeklyBestAndKeystone()
+	C_Timer.After(2, function()
+		KeystoneManager:UpdateWeeklyBest();
+		KeystoneManager:GetKeystone();
+	end);
 end
 
 function KeystoneManager:ShowWindow(input)
 	if not self.KeystoneWindow then
-		self:GetWeeklyBest();
 
-		self.KeystoneWindow = AceGUI:Create('Window');
-		self.KeystoneWindow:SetTitle('Keystone Manager');
-		self.KeystoneWindow.frame:SetFrameStrata('DIALOG');
-		self.KeystoneWindow:SetLayout('Flow');
-		self.KeystoneWindow:SetWidth(625);
-		self.KeystoneWindow:SetHeight(550);
-		self.KeystoneWindow:EnableResize(false);
+		self.KeystoneWindow = StdUi:Window(UIParent, 'Keystone Manager', 625, 550);
 
-		local target = AceGUI:Create('Dropdown');
-		target:SetLabel('Report to');
-		target:SetList({
-			['WHISPER'] = 'Whisper',
-			['GUILD'] = 'Guild',
-			['PARTY'] = 'Party',
-			['RAID'] = 'Raid',
-			['INSTANCE_CHAT'] = 'Instance',
-		});
-		target:SetValue(self.db.global.target);
-		target:SetCallback('OnValueChanged', function(self, event, key)
-			KeystoneManager.db.global.target = key;
-		end);
-		self.KeystoneWindow:AddChild(target);
+		local window = self.KeystoneWindow;
+		window.titlePanel:SetBackdrop(nil);
+		window:SetPoint('CENTER');
+		window:SetFrameStrata('DIALOG');
 
-		local whisper = AceGUI:Create('EditBox');
-		whisper:SetLabel('Whisper target');
-		whisper:SetText(self.db.global.whisper);
-		whisper:SetCallback('OnTextChanged', function(self, event, text)
-			KeystoneManager.db.global.whisper = text;
-		end);
-		self.KeystoneWindow:AddChild(whisper);
+		local whisperOpts = {
+			{text = 'Whisper', value = 'WHISPER'},
+			{text = 'Guild', value = 'GUILD'},
+			{text = 'Party', value = 'PARTY'},
+			{text = 'Raid', value = 'RAID'},
+			{text = 'Instance', value = 'INSTANCE_CHAT'},
+		}
+		local target = StdUi:Dropdown(window, 120, 24, whisperOpts, self.db.target);
+		StdUi:AddLabel(window, target, 'Send Message To', 'TOP');
+		StdUi:GlueTop(target, window, 10, -50, 'LEFT');
+		target.OnValueChanged = function(_, value, text)
+			self.db.target = value;
+		end;
 
-		local minlevel = AceGUI:Create('Slider');
-		minlevel:SetLabel('Min Level');
-		minlevel:SetSliderValues(0, 50, 1);
-		minlevel:SetValue(self.db.global.minlevel);
-		minlevel:SetCallback('OnValueChanged', function(self, event, val)
-			KeystoneManager.db.global.minlevel = val;
-		end);
-		self.KeystoneWindow:AddChild(minlevel);
+		local whisper = StdUi:EditBox(window, 120, 24, self.db.whisper);
+		StdUi:AddLabel(window, whisper, 'Whisper target', 'TOP');
+		StdUi:GlueRight(whisper, target, 10, 0);
+		whisper.OnValueChanged = function(_, text)
+			self.db.whisper = text;
+		end;
 
-		local maxlevel = AceGUI:Create('Slider');
-		maxlevel:SetLabel('Max Level');
-		maxlevel:SetSliderValues(0, 50, 1);
-		maxlevel:SetValue(self.db.global.maxlevel);
-		maxlevel:SetCallback('OnValueChanged', function(self, event, val)
-			KeystoneManager.db.global.maxlevel = val;
-		end);
-		self.KeystoneWindow:AddChild(maxlevel);
-
-
-		local btn = AceGUI:Create('Button');
-		btn:SetWidth(100);
-		btn:SetText('Report');
-		btn:SetCallback('OnClick', function()
+		local btn = StdUi:Button(window, 120, 24, 'Report');
+		StdUi:GlueRight(btn, whisper, 10, 0);
+		btn:SetScript('OnClick', function()
 			self:ReportKeys();
 		end);
-		self.KeystoneWindow:AddChild(btn);
 
-		local ScrollingTable = LibStub('ScrollingTable');
+		local minLevel = StdUi:NumericBox(window, 120, 24, self.db.minLevel);
+		StdUi:AddLabel(window, minLevel, 'Min Level', 'TOP');
+		StdUi:GlueBelow(minLevel, target, 0, -30);
+		minLevel:SetMinMaxValue(0, 50);
+		minLevel.OnValueChanged = function(_, val)
+			self.db.minLevel = val;
+		end;
+
+		local maxLevel = StdUi:NumericBox(window, 120, 24, self.db.maxLevel);
+		StdUi:AddLabel(window, maxLevel, 'Max Level', 'TOP');
+		StdUi:GlueRight(maxLevel, minLevel, 10, 0);
+		maxLevel:SetMinMaxValue(0, 50);
+		maxLevel.OnValueChanged = function(_, val)
+			self.db.maxLevel = val;
+		end;
+
 		local cols = {
 			{
-				['name'] = 'Character',
-				['width'] = 120,
-				['align'] = 'LEFT',
+				name  = 'Character',
+				width = 120,
+				index = 'name'
 			},
 
 			{
-				['name'] = 'Weekly Best',
-				['width'] = 30,
-				['align'] = 'LEFT',
+				name  = 'Weekly Best',
+				width = 100,
+				index = 'weeklyBest'
 			},
 
 			{
-				['name'] = 'Key',
-				['width'] = 220,
-				['align'] = 'LEFT',
+				name  = 'Dungeon',
+				width = 165,
+				index = 'mapName',
 			},
 
 			{
-				['name'] = 'Dungeon',
-				['width'] = 165,
-				['align'] = 'LEFT',
-			},
-
-			{
-				['name'] = 'Level',
-				['width'] = 35,
-				['align'] = 'LEFT',
+				name  = 'Level',
+				width = 80,
+				index = 'level',
+				type  = 'number'
 			},
 		}
-		self.ScrollTable = ScrollingTable:CreateST(cols, 16, 20, nil, self.KeystoneWindow.content);
-
-		self:UpdateTable(self.ScrollTable);
+		self.ScrollTable = StdUi:ScrollTable(window, cols, 16, 20);
+		StdUi:GlueAcross(self.ScrollTable, window, 10, -160, -10, 60);
+		self:UpdateTable();
 
 		self.ScrollTable:RegisterEvents({
-			['OnClick'] = function(rowFrame, cellFrame, data, cols, row, realrow, column, scrollingTable, ...)
-				if data[row] then
-					local link = data[realrow][3];
-					if link then
-						if IsAltKeyDown() then
-							local info = KeystoneManager:ExtractKeystoneInfo(link);
-							KeystoneManager:CreateGroup(info);
-						elseif IsShiftKeyDown() then
-							HandleModifiedItemClick(link);
-						else
-							GameTooltip:SetOwner(UIParent);
-							GameTooltip:SetHyperlink(link);
-							GameTooltip:Show();
-						end
+			OnClick = function(table, cellFrame, rowFrame, rowData, columnData, rowIndex)
+				local link = KeystoneManager:CreateLink(rowData);
+
+				if link then
+					if IsAltKeyDown() then
+						KeystoneManager:CreateGroup(rowData);
+					elseif IsShiftKeyDown() then
+						HandleModifiedItemClick(link);
+					else
+						GameTooltip:SetOwner(UIParent);
+						GameTooltip:SetHyperlink(link);
+						GameTooltip:Show();
 					end
 				end
+				return true;
 			end,
 		});
-		local tableWrapper = AceGUI:Create('lib-st'):WrapST(self.ScrollTable);
-
-		tableWrapper.head_offset = 20;
-		self.KeystoneWindow:AddChild(tableWrapper);
 
 		-- Clear button
-		local clearBtn = AceGUI:Create('Button');
-		clearBtn:SetWidth(100);
+		local clearBtn = StdUi:Button(window, 120, 24, 'Report');
+		StdUi:GlueBottom(clearBtn, window, -10, 10, 'RIGHT');
 		clearBtn:SetText('Clear');
-
-		clearBtn:SetCallback('OnClick', function()
+		clearBtn:SetScript('OnClick', function()
 			self:ClearKeystones();
 		end);
-		self.KeystoneWindow:AddChild(clearBtn);
 
 		-- Refresh button
-		local refreshbtn = AceGUI:Create('Button');
-		refreshbtn:SetWidth(100);
-		refreshbtn:SetText('Refresh');
-
-		refreshbtn:SetCallback('OnClick', function()
+		local refreshBtn = StdUi:Button(window, 120, 24, 'Refresh');
+		StdUi:GlueBottom(refreshBtn, window, 10, 10, 'LEFT');
+		refreshBtn:SetScript('OnClick', function()
 			self:GetKeystone(true);
-			self:GetWeeklyBest();
+			self:UpdateWeeklyBest();
 		end);
-		self.KeystoneWindow:AddChild(refreshbtn);
 
 		-- Copy button
-		local copybtn = AceGUI:Create('Button');
-		copybtn:SetWidth(100);
-		copybtn:SetText('Copy Keys');
-
-		copybtn:SetCallback('OnClick', function()
+		local copyBtn = StdUi:Button(window, 120, 24, 'Copy Keys');
+		StdUi:GlueRight(copyBtn, refreshBtn, 10, 0);
+		copyBtn:SetScript('OnClick', function()
 			self:ShowCopyWindow();
 		end);
-		self.KeystoneWindow:AddChild(copybtn);
-
-		-- Set points manually
-		clearBtn:ClearAllPoints();
-		clearBtn:SetPoint('BOTTOMLEFT', self.KeystoneWindow.frame, 20, 20);
-		refreshbtn:ClearAllPoints();
-		refreshbtn:SetPoint('BOTTOMLEFT', self.KeystoneWindow.frame, 130, 20);
-		copybtn:ClearAllPoints();
-		copybtn:SetPoint('BOTTOMLEFT', self.KeystoneWindow.frame, 240, 20);
 	end
 
 	self.KeystoneWindow:Show();
 end
 
+function KeystoneManager:CreateLink(data)
+	-- "|cffa335ee|Hkeystone:158923:244:2:10:0:0:0|h[Keystone: Atal'dazar (2)]|h|r"
+	local link = string.format(
+		'|cffa335ee|Hkeystone:158923:%d:%d:10:0:0:0|h[Keystone: %s (%d)]|h|r',
+		data.mapId,
+		data.level,
+		data.mapNamePlain,
+		data.level
+	);
+
+	return link;
+end
+
 function KeystoneManager:GetKeysText()
 	local text = '';
-	for char, key in pairs(self.db.global.keystones) do
-		local info = self:ExtractKeystoneInfo(key);
-		if 	info.level >= self.db.global.minlevel and
-			info.level <= self.db.global.maxlevel and
-			not self.db.global.excludes[info.dungeonId]
+	for char, key in pairs(self.db.keystones) do
+		if 	key.level >= self.db.minLevel and
+			key.level <= self.db.maxLevel and
+			not self.db.excludes[key.mapId]
 		then
-			text = text .. self:NameWithoutRealm(char) .. ' - ' .. info.dungeonName .. ' +' .. info.level .. "\n";
+			text = text .. self:NameWithoutRealm(char) .. ' - ' .. key.mapName .. ' +' .. key.level .. '\n';
 		end
 	end
 
@@ -393,123 +342,94 @@ function KeystoneManager:GetKeysText()
 end
 
 function KeystoneManager:ShowCopyWindow()
-	if self.KeystoneCopyWindow then
-		self:GetWeeklyBest();
+	if not self.KeystoneCopyWindow then
+		local window = StdUi:Window(UIParent, 'Copy Keystones', 400, 350);
+		window:SetPoint('CENTER');
+		window:SetFrameStrata('FULLSCREEN_DIALOG');
 
-		self.KeystoneCopyWindow.copyText:SetText(self:GetKeysText());
-		self.KeystoneCopyWindow:Show();
-		self.KeystoneCopyWindow.frame:SetToplevel(true);
+		local mb = StdUi:MultiLineBox(window, 380, 300, self:GetKeysText());
+		StdUi:GlueTop(mb.panel, window, 0, -40, 'CENTER');
+		window.editBox = mb;
+		self.KeystoneCopyWindow = window;
 		return;
 	end
 
-	self.KeystoneCopyWindow = AceGUI:Create('Window');
-	self.KeystoneCopyWindow :SetTitle('Keystone Manager');
-	self.KeystoneCopyWindow:SetLayout('Flow');
-	self.KeystoneCopyWindow:SetWidth(400);
-	self.KeystoneCopyWindow:SetHeight(350);
-	self.KeystoneCopyWindow:EnableResize(false);
-
-	-- Refresh button
-	local copyText = AceGUI:Create('MultiLineEditBox');
-	copyText:SetFullHeight(true);
-	copyText:SetFullWidth(true);
-	copyText:SetLabel('Your Keys');
-	copyText:DisableButton(true);
-	copyText:SetNumLines(14);
-	self.KeystoneCopyWindow.copyText = copyText;
-	self.KeystoneCopyWindow:AddChild(copyText);
-
-	copyText:SetText(self:GetKeysText());
-	self.KeystoneCopyWindow.frame:SetToplevel(true);
+	self.KeystoneCopyWindow:Show();
+	self.KeystoneCopyWindow.editBox:SetText(self:GetKeysText());
 end
 
 function KeystoneManager:GetCurrentKeystoneInfo()
 	local name = KeystoneManager:NameAndRealm();
-	local keystone = KeystoneManager.db.global.keystones[name];
-	if keystone then
-		return KeystoneManager:ExtractKeystoneInfo(keystone);
-	else
-		return nil
-	end
+	local keystone = KeystoneManager.db.keystones[name];
+
+	return keystone;
 end
 
 function KeystoneManager:GetKeystone(force)
 	force = force or false;
+	
+	if not self.db.keystones then
+		self.db.keystones = {};
+	end
+
 	local name = self:NameAndRealm();
-	if not self.db.global.keystones then
-		self.db.global.keystones = {};
-	end
-	local keystone = self.db.global.keystones[name];
+	local keystone = self.db.keystones[name];
 
-	local found = false;
-	for bag = 0, NUM_BAG_SLOTS do
-		local numSlots = GetContainerNumSlots(bag);
-		if numSlots ~= 0 then
-			for slot = 1, numSlots do
-				if (GetContainerItemID(bag, slot) == 138019) then
-					local link = GetContainerItemLink(bag, slot);
-					local oldKey = self.db.global.keystones[name];
+	local mapId = C_MythicPlus.GetOwnedKeystoneChallengeMapID();
+	local level = C_MythicPlus.GetOwnedKeystoneLevel();
+	local mapName = self.mapNames[mapId];
 
-					local info = self:ExtractKeystoneInfo(link);
-					local oldInfo = self:ExtractKeystoneInfo(oldKey);
-
-					if force or oldInfo == nil or (info.level ~= 0 and (info.dungeonId ~= oldInfo.dungeonId or
-							info.level ~= oldInfo.level)) then --keystone has changed
-						if self.db.global.announce then
-							SendChatMessage('New Keystone - ' .. info.dungeonName .. ' +' .. info.level,
-								'PARTY');
-						end
-
-						self.db.global.keystones[name] = link;
-						self:GetWeeklyBest();
-						self:UpdateTable(self.ScrollTable);
-						self:RefreshDataText();
-					end
-					found = true;
-					return link;
-				end
-			end
-		end
-	end
-
-	if not found then
-		self.db.global.keystones[name] = nil;
+	if not mapId or not level then
 		return nil;
+	end
+
+	if force or not keystone or (level ~= keystone.level or mapId ~= keystone.mapId) then
+		--keystone has changed
+		if self.db.announce and not force then
+			SendChatMessage('Keystone Manager: ' .. mapName .. ' +' .. level, 'PARTY');
+		end
+
+		self.db.keystones[name] = {
+			mapId = mapId,
+			mapName = mapName,
+			level = level
+		};
+
+		self:UpdateTable(self.ScrollTable);
+		self:RefreshDataText();
 	end
 
 	return keystone;
 end
 
-function KeystoneManager:GetWeeklyBest()
+function KeystoneManager:UpdateWeeklyBest()
 	local name = self:NameAndRealm();
-	if not self.db.global.weeklyBest then
-		self.db.global.weeklyBest = {};
+	
+	if not self.db.weeklyBest then
+		self.db.weeklyBest = {};
 	end
 
-	C_ChallengeMode.RequestMapInfo();
-	C_ChallengeMode.RequestRewards();
-	local mapTable = C_ChallengeMode.GetMapTable();
 	local best = 0;
-	for i, mapId in pairs(mapTable) do
-		local _, weeklyBestTime, weeklyBestLevel = C_ChallengeMode.GetMapPlayerStats(mapId);
+	for mapId, mapName in pairs(self.mapNames) do
+		local _, level, _, _, members = C_MythicPlus.GetSeasonBestForMap(mapId);
+		
+		if not level then
+			level = 0;
+		end
 
-		if weeklyBestLevel and weeklyBestLevel > best then
-			best = weeklyBestLevel;
+		if level > best then
+			best = level;
 		end
 	end
-	if best == 0 then
-		if self.bestTries < 5 then
-			self.bestTries = self.bestTries + 1;
-			self.bestTimer = self:ScheduleTimer('GetWeeklyBest', 3);
-		end
-	end
-	self.db.global.weeklyBest[name] = best;
+	
+	self.db.weeklyBest[name] = best;
+	
 	return best;
 end
 
 function KeystoneManager:PrintKeystone()
 	local name = self:NameAndRealm();
-	local keystone = self.db.global.keystones[name];
+	local keystone = self.db.keystones[name];
 	if keystone then
 		keystone = self:GetKeystone();
 	end
@@ -517,58 +437,78 @@ function KeystoneManager:PrintKeystone()
 end
 
 function KeystoneManager:ReportKeys()
-	local target = self.db.global.whisper;
-	if self.db.global.target ~= 'WHISPER' then
+	local target = self.db.whisper;
+	if self.db.target ~= 'WHISPER' then
 		target = nil;
 	end
 
-	for char, key in pairs(self.db.global.keystones) do
-		local info = self:ExtractKeystoneInfo(key);
-		if  info.level >= self.db.global.minlevel and
-			info.level <= self.db.global.maxlevel and
-			not self.db.global.excludes[info.dungeonId]
+	for char, key in pairs(self.db.keystones) do
+		
+		if  key.level >= self.db.minLevel and
+			key.level <= self.db.maxLevel and
+			not self.db.excludes[key.mapId]
 		then
-			SendChatMessage(self:NameWithoutRealm(char) .. ' - ' .. info.dungeonName .. ' +' .. info.level,
-				self.db.global.target,
+			SendChatMessage(
+				self:NameWithoutRealm(char) .. ' - ' .. key.mapName .. ' +' .. key.level,
+				self.db.target,
 				nil,
-				target);
+				target
+			);
 		end
 	end
 end
 
 function KeystoneManager:ClearKeystones()
-	self.db.global.weeklyBest = {};
-	self.db.global.keystones = {};
+	self.db.weeklyBest = {};
+	self.db.keystones = {};
 	self:UpdateTable(self.ScrollTable);
 	self:RefreshDataText()
 end
 
 function KeystoneManager:CreateGroup(info)
-	local groupName = info.dungeonName .. ' +' .. info.level;
-	local activity = activities[info.dungeonId];
-	C_LFGList.CreateListing(activity, groupName, 0, 0, '', '', false);
+	--local groupName = '+' .. info.level;
+
+	local activity = activities[info.mapId];
+
+	PVEFrame_ShowFrame('GroupFinderFrame', LFGListPVEStub);
+
+	local panel = LFGListFrame.CategorySelection;
+	panel.selectedCategory = 2;
+
+	local baseFilters = panel:GetParent().baseFilters;
+	local entryCreation = panel:GetParent().EntryCreation;
+
+	LFGListEntryCreation_Show(
+		entryCreation, baseFilters, panel.selectedCategory, panel.selectedFilters
+	);
+	LFGListEntryCreation_Select(LFGListFrame.EntryCreation, nil, nil, nil, activity);
+
+	--activity = 459;
+	----activityID, itemLevel, honorLevel, autoAccept, privateGroup, questID
+	--C_LFGList.CreateListing(activity, 0, 0, false, false, nil);
 end
 
 -- Helpers
 
-function KeystoneManager:UpdateTable(table)
+function KeystoneManager:UpdateTable()
+	local table = self.ScrollTable;
 	if not table then
 		return;
 	end
 
 	local tableData = {};
-	for char, key in pairs(self.db.global.keystones) do
-		local info = self:ExtractKeystoneInfo(key);
-		local weeklyBest = self.db.global.weeklyBest[char];
-
-		local color = self:GetKeystoneColor(info);
+	for char, key in pairs(self.db.keystones) do
+		
+		local weeklyBest = self.db.weeklyBest[char];
+		local color = self:GetKeystoneColor(key);
 
 		tinsert(tableData, {
-			self:NameWithoutRealm(char),
-			weeklyBest,
-			key,
-			format('|c%s%s|r', color, info.dungeonName),
-			info.level
+			name = self:NameWithoutRealm(char),
+			weeklyBest = weeklyBest,
+			mapName = format('|c%s%s|r', color, key.mapName),
+			mapNamePlain = key.mapName,
+			level = key.level,
+			mapId = key.mapId
 		});
 	end
 
@@ -589,41 +529,21 @@ function KeystoneManager:NameAndRealm()
 end
 
 function KeystoneManager:NameWithoutRealm(name)
-	return gsub(name or '', "%-[^|]+", "");
-end
-
-function KeystoneManager:ExtractKeystoneInfo(link)
-	if not link then
-		return nil;
-	end
-
-	local parts = { strsplit(':', link) }
-
-	local dungeonId = tonumber(parts[2]);
-	local level = tonumber(parts[3]);
-
-	-- local name, id, timeLimit, texture, backgroundTexture = C_ChallengeMode.GetMapInfo(mapChallengeModeID)
-	local dungeonName = C_ChallengeMode.GetMapInfo(dungeonId);
-
-	return {
-		dungeonId = dungeonId,
-		dungeonName = dungeonName,
-		level = level
-	}
+	return gsub(name or '', '%-[^|]+', '');
 end
 
 function KeystoneManager:FormatKeystone(info)
 	local color = self:GetKeystoneColor(info);
-	return format('|c%s%s|r +%d', color, info.dungeonName, info.level);
+	return format('|c%s%s|r +%d', color, info.mapName, info.level);
 end
 
 function KeystoneManager:GetShortInfo(info)
 	local color = self:GetKeystoneColor(info);
-	return format('|c%s%s|r +%d', color, shortNames[info.dungeonId], info.level);
+	return format('|c%s%s|r +%d', color, shortNames[info.mapId] or 'UNKNOWN', info.level);
 end
 
 function KeystoneManager:GetKeystoneColor(info)
-	if self.db.global.excludes[info.dungeonId] then
+	if self.db.excludes[info.mapId] then
 		return 'ffc41f3b';
 	end
 

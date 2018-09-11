@@ -1,0 +1,28 @@
+package-as: KeystoneManager
+enable-nolib-creation: no
+
+externals:
+    # Ace Libs
+    Libs/AceAddon-3.0:
+        url: https://repos.wowace.com/wow/ace3/trunk/AceAddon-3.0
+    Libs/AceConsole-3.0:
+        url: https://repos.wowace.com/wow/ace3/trunk/AceConsole-3.0
+    Libs/AceEvent-3.0:
+        url: https://repos.wowace.com/wow/ace3/trunk/AceEvent-3.0
+    Libs/AceTimer-3.0:
+        url: https://repos.wowace.com/wow/ace3/trunk/AceTimer-3.0
+    Libs/CallbackHandler-1.0:
+        url: https://repos.wowace.com/wow/ace3/trunk/CallbackHandler-1.0
+    Libs/LibDataBroker-1.1:
+        url: https://repos.wowace.com/wow/libdatabroker-1-1
+    Libs/LibDBIcon-1.0:
+        url: https://repos.wowace.com/wow/libdbicon-1-0/trunk
+    Libs/LibStub:
+        url: https://repos.wowace.com/wow/ace3/trunk/LibStub
+
+    Libs/StdUi:
+        url: https://github.com/kaminaris/StdUi.git
+
+ignore:
+    - README.md
+    - CHANGELOG.md
