@@ -4,6 +4,8 @@
 ## Author: Kaminaris
 ## Interface: 80000
 ## SavedVariables: KeystoneManagerDb
+## X-Curse-Project-ID: 254899
+## X-WoWI-ID: 24817
 
 Libs\LibStub\LibStub.lua
 Libs\StdUi\StdUi.xml

@@ -320,7 +320,7 @@ function KeystoneManager:CreateLink(data)
 		'|cffa335ee|Hkeystone:158923:%d:%d:10:0:0:0|h[Keystone: %s (%d)]|h|r',
 		data.mapId,
 		data.level,
-		data.mapNamePlain,
+		data.mapNamePlain or data.mapName,
 		data.level
 	);
 
@@ -433,7 +433,7 @@ function KeystoneManager:PrintKeystone()
 	if keystone then
 		keystone = self:GetKeystone();
 	end
-	self:Print(keystone);
+	self:Print(self:CreateLink(keystone));
 end
 
 function KeystoneManager:ReportKeys()
