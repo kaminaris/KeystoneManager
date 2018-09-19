@@ -151,21 +151,33 @@ function KeystoneManager:OnInitialize()
 	self:RegisterEvent('CHALLENGE_MODE_MEMBER_INFO_UPDATED', 'UpdateWeeklyBest');
 	self:RegisterEvent('CHALLENGE_MODE_LEADERS_UPDATE', 'UpdateWeeklyBest');
 	self:RegisterEvent('CHALLENGE_MODE_COMPLETED', 'UpdateWeeklyBestAndKeystone');
+
+	if not ldb:GetDataObjectByName('KeystoneManager') then
+		ldb:NewDataObject('KeystoneManager', kmldbObject);
+		icon:Register('KeystoneManager', kmldbObject, self.db.ldbStorage);
+	end
 end
 
 -- Can't really request it faster
 function KeystoneManager:PLAYER_ENTERING_WORLD()
-	C_MythicPlus.RequestMapInfo();
-	self:GetMapInfo();
-	for mapId, mapName in pairs(self.mapNames) do
-		C_ChallengeMode.RequestLeaders(mapId);
+	if self.onceRequested then
+		self:RefreshDataText();
+		self:GetKeystone();
+		return;
 	end
 
-	ldb:NewDataObject('KeystoneManager', kmldbObject);
-	icon:Register('KeystoneManager', kmldbObject, self.db.ldbStorage);
+	C_Timer.After(5, function()
+		C_MythicPlus.RequestMapInfo();
+		self:GetMapInfo();
+		for mapId, mapName in pairs(self.mapNames) do
+			C_ChallengeMode.RequestLeaders(mapId);
+		end
 
-	self:RefreshDataText();
-	self:GetKeystone();
+		self:RefreshDataText();
+		self:GetKeystone();
+
+		self.onceRequested = true;
+	end);
 end
 
 function KeystoneManager:GetMapInfo()
@@ -411,7 +423,7 @@ function KeystoneManager:UpdateWeeklyBest()
 
 	local best = 0;
 	for mapId, mapName in pairs(self.mapNames) do
-		local _, level, _, _, members = C_MythicPlus.GetSeasonBestForMap(mapId);
+		local _, level, _, _, members = C_MythicPlus.GetWeeklyBestForMap(mapId);
 		
 		if not level then
 			level = 0;
