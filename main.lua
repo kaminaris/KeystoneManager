@@ -146,11 +146,14 @@ function KeystoneManager:OnInitialize()
 	self:RegisterChatCommand('keyprint', 'PrintKeystone');
 
 	self:RegisterEvent('PLAYER_ENTERING_WORLD');
+	self:RegisterEvent('CHAT_MSG_ADDON', 'ChatAddonMsg');
+	C_ChatInfo.RegisterAddonMessagePrefix('AstralKeys');
 
 	self:RegisterEvent('CHALLENGE_MODE_MAPS_UPDATE', 'UpdateWeeklyBest');
 	self:RegisterEvent('CHALLENGE_MODE_MEMBER_INFO_UPDATED', 'UpdateWeeklyBest');
 	self:RegisterEvent('CHALLENGE_MODE_LEADERS_UPDATE', 'UpdateWeeklyBest');
 	self:RegisterEvent('CHALLENGE_MODE_COMPLETED', 'UpdateWeeklyBestAndKeystone');
+	self:RegisterEvent('BAG_UPDATE_DELAYED', 'GetKeystone');
 
 	if not ldb:GetDataObjectByName('KeystoneManager') then
 		ldb:NewDataObject('KeystoneManager', kmldbObject);
@@ -158,26 +161,257 @@ function KeystoneManager:OnInitialize()
 	end
 end
 
--- Can't really request it faster
 function KeystoneManager:PLAYER_ENTERING_WORLD()
 	if self.onceRequested then
 		self:RefreshDataText();
+		self:ValidateKeys();
 		self:GetKeystone();
 		return;
-	end
-
-	C_Timer.After(5, function()
+	else
 		C_MythicPlus.RequestMapInfo();
 		self:GetMapInfo();
+	end
+
+	-- Can't really request it faster
+	C_Timer.After(5, function()
 		for mapId, mapName in pairs(self.mapNames) do
 			C_ChallengeMode.RequestLeaders(mapId);
 		end
 
 		self:RefreshDataText();
 		self:GetKeystone();
+		self:RequestGuildKeys();
 
 		self.onceRequested = true;
 	end);
+end
+
+function KeystoneManager:ValidateKeys()
+	if not self.db.keystones then self.db.keystones = {}; end;
+	if not self.db.guildKeys then self.db.guildKeys = {}; end;
+
+	local timestamp, week = self:TimeStamp();
+	for name, keyInfo in pairs(self.db.keystones) do
+		if not keyInfo.week or keyInfo.week < week then
+			self.db.keystones[name] = nil;
+		end
+	end
+
+	for name, keyInfo in pairs(self.db.guildKeys) do
+		if not keyInfo.week or keyInfo.week < week then
+			self.db.guildKeys[name] = nil;
+		end
+	end
+end
+
+function KeystoneManager:RequestGuildKeys()
+	C_ChatInfo.SendAddonMessage('AstralKeys', 'request', 'GUILD');
+end
+
+function KeystoneManager:ClearGuildKeys()
+	wipe(self.db.guildKeys);
+end
+
+function KeystoneManager:RespondKeys()
+	local msgToSend = '';
+	local ts, week = self:TimeStamp();
+
+	for name, keyInfo in pairs(self.db.keystones) do
+		local shortName = name:gsub('%s+', '')
+		local oneChar = format(
+			'%s:%s:%s:%s:%s:%s:%s_',
+			shortName,
+			keyInfo.class or 'MAGE',
+			keyInfo.mapId,
+			keyInfo.level,
+			'0',
+			week,
+			ts
+		);
+
+		if string.len(msgToSend .. oneChar) > 250 then
+			C_ChatInfo.SendAddonMessage('AstralKeys', 'sync5 ' .. msgToSend, 'GUILD');
+			msgToSend = '';
+		else
+			msgToSend = msgToSend .. oneChar;
+		end
+	end
+
+	if msgToSend ~= '' then
+		C_ChatInfo.SendAddonMessage('AstralKeys', 'sync5 ' .. msgToSend, 'GUILD');
+	end
+
+	for name, keyInfo in pairs(self.db.guildKeys) do
+		local shortName = name:gsub('%s+', '')
+		local oneChar = format(
+			'%s:%s:%s:%s:%s:%s:%s_',
+			shortName,
+			keyInfo.class or 'MAGE',
+			keyInfo.mapId,
+			keyInfo.level,
+			'0',
+			week,
+			ts
+		);
+
+		if string.len(msgToSend .. oneChar) > 250 then
+			C_ChatInfo.SendAddonMessage('AstralKeys', 'sync5 ' .. msgToSend, 'GUILD');
+			msgToSend = '';
+		else
+			msgToSend = msgToSend .. oneChar;
+		end
+	end
+
+	if msgToSend ~= '' then
+		C_ChatInfo.SendAddonMessage('AstralKeys', 'sync5 ' .. msgToSend, 'GUILD');
+	end
+end
+
+local function trim(s)
+	return (s:gsub("^%s*(.-)%s*$", "%1"))
+end
+
+function KeystoneManager:GatherGuildKeys(message)
+	local guildKeys = {strsplit('_', message)};
+
+	if not self.db.guildKeys then
+		self.db.guildKeys = {};
+	end
+
+	for i = 1, #guildKeys do
+		local unit, class, mapId, level, weekly, week, timestamp = strsplit(':', guildKeys[i]);
+		unit = trim(unit);
+
+		if unit and unit ~= nil and unit ~= '' then
+			mapId = tonumber(mapId);
+			level = tonumber(level);
+			weekly = tonumber(weekly);
+			week = tonumber(week);
+			timestamp = tonumber(timestamp);
+
+			self.db.guildKeys[unit] = {
+				unit      = unit,
+				class     = class,
+				mapId     = mapId,
+				level     = level,
+				week      = week,
+				weekly    = weekly,
+				timestamp = timestamp,
+			};
+		end
+	end
+
+	self:RefreshGuildKeyTable();
+end
+
+function KeystoneManager:ChatAddonMsg(e, prefix, message, distribution, sender)
+	local player = self:NameAndRealm();
+	if sender == player then
+		return;
+	end
+
+	if prefix == 'AstralKeys' then
+		if message:sub(1, 7) == 'request' then
+			self:RespondKeys();
+		elseif message:sub(1, 5) == 'sync5' then
+			message = message:sub(6);
+			self:GatherGuildKeys(message);
+		end
+	end
+end
+
+function KeystoneManager:ShowGuildKeys()
+	if self.guildKeysWindow then
+		self.guildKeysWindow:Show();
+		if self.KeystoneWindow:IsVisible() then
+			self.guildKeysWindow:ClearAllPoints();
+			self.guildKeysWindow:SetPoint('LEFT', self.KeystoneWindow, 'RIGHT', 10, 0);
+		end
+		self:RefreshGuildKeyTable();
+		return;
+	end
+
+	local guildKeysWindow = StdUi:Window(nil, 'Guild Keys', 500, 550);
+	guildKeysWindow:SetPoint('CENTER');
+	self.guildKeysWindow = guildKeysWindow;
+
+	StdUi:EasyLayout(guildKeysWindow, { padding = { top = 40 } });
+
+	local refreshBtn = StdUi:Button(guildKeysWindow, nil, 20, 'Refresh');
+	refreshBtn:SetScript('OnClick', function () self:RequestGuildKeys(); self:RefreshGuildKeyTable(); end);
+
+	local clearBtn = StdUi:Button(guildKeysWindow, nil, 20, 'Clear');
+	clearBtn:SetScript('OnClick', function () self:ClearGuildKeys(); self:RefreshGuildKeyTable(); end);
+
+	local cols = {
+		{
+			name  = 'Character',
+			width = 120,
+			index = 'name',
+			color = function (table, value, rowData, columnData)
+				local r, g, b = GetClassColor(rowData.class);
+				return { r = r, g = g, b = b, a = 1};
+			end,
+		},
+
+		{
+			name  = 'Weekly Best',
+			width = 100,
+			index = 'weekly'
+		},
+
+		{
+			name  = 'Dungeon',
+			width = 165,
+			index = 'mapName',
+		},
+
+		{
+			name  = 'Level',
+			width = 80,
+			index = 'level',
+			type  = 'number'
+		},
+	}
+
+	guildKeysWindow.table = StdUi:ScrollTable(guildKeysWindow, cols, 16, 20);
+
+	self:RefreshGuildKeyTable();
+	local btnRow = guildKeysWindow:AddRow();
+
+	btnRow:AddElement(refreshBtn, { column = 4 });
+	btnRow:AddElement(clearBtn, { column = 4 });
+	guildKeysWindow:AddRow({ margin = {top = 30}}):AddElement(guildKeysWindow.table);
+	guildKeysWindow:Show();
+	guildKeysWindow:DoLayout();
+
+	if self.KeystoneWindow:IsVisible() then
+		self.guildKeysWindow:ClearAllPoints();
+		self.guildKeysWindow:SetPoint('LEFT', self.KeystoneWindow, 'RIGHT', 10, 0);
+	end
+end
+
+function KeystoneManager:RefreshGuildKeyTable()
+	if not self.guildKeysWindow or not self.guildKeysWindow.table then
+		return;
+	end
+
+	local data = {};
+
+	for name, keyInfo in pairs(self.db.guildKeys) do
+		local shortName = self:NameWithoutRealm(name);
+		local mapName = self.mapNames[keyInfo.mapId];
+
+		tinsert(data, {
+			name       = shortName,
+			class      = keyInfo.class,
+			weekly     = keyInfo.weekly,
+			mapName    = mapName,
+			level      = keyInfo.level
+		});
+	end
+
+	self.guildKeysWindow.table:SetData(data, true);
 end
 
 function KeystoneManager:GetMapInfo()
@@ -234,6 +468,12 @@ function KeystoneManager:ShowWindow(input)
 			self:ReportKeys();
 		end);
 
+		local gk = StdUi:Button(window, 120, 24, 'Guild Keys');
+		StdUi:GlueTop(gk, window, -10, -50, 'RIGHT');
+		gk:SetScript('OnClick', function()
+			self:ShowGuildKeys();
+		end);
+
 		local minLevel = StdUi:NumericBox(window, 120, 24, self.db.minLevel);
 		StdUi:AddLabel(window, minLevel, 'Min Level', 'TOP');
 		StdUi:GlueBelow(minLevel, target, 0, -30);
@@ -254,7 +494,11 @@ function KeystoneManager:ShowWindow(input)
 			{
 				name  = 'Character',
 				width = 120,
-				index = 'name'
+				index = 'name',
+				color = function (table, value, rowData, columnData)
+					local r, g, b = GetClassColor(rowData.class);
+					return { r = r, g = g, b = b, a = 1};
+				end,
 			},
 
 			{
@@ -327,7 +571,7 @@ function KeystoneManager:ShowWindow(input)
 end
 
 function KeystoneManager:CreateLink(data)
-	-- "|cffa335ee|Hkeystone:158923:244:2:10:0:0:0|h[Keystone: Atal'dazar (2)]|h|r"
+	-- '|cffa335ee|Hkeystone:158923:244:2:10:0:0:0|h[Keystone: Atal'dazar (2)]|h|r'
 	local link = string.format(
 		'|cffa335ee|Hkeystone:158923:%d:%d:10:0:0:0|h[Keystone: %s (%d)]|h|r',
 		data.mapId,
@@ -377,6 +621,19 @@ function KeystoneManager:GetCurrentKeystoneInfo()
 	return keystone;
 end
 
+local usResetTime = 1500390000 -- US Tuesday at reset
+local euResetTime = 1500447600 -- EU Wednesday at reset
+
+function KeystoneManager:TimeStamp()
+	local region = GetCurrentRegion()
+	local serverTime = GetServerTime();
+	local resetTime = region ~= 3 and usResetTime or euResetTime;
+	local week;
+
+	week = math.floor((serverTime - resetTime) / 604800);
+	return serverTime - resetTime - 604800 * week, week;
+end
+
 function KeystoneManager:GetKeystone(force)
 	force = force or false;
 	
@@ -385,11 +642,13 @@ function KeystoneManager:GetKeystone(force)
 	end
 
 	local name = self:NameAndRealm();
+	local _, class = UnitClass('player');
 	local keystone = self.db.keystones[name];
 
 	local mapId = C_MythicPlus.GetOwnedKeystoneChallengeMapID();
 	local level = C_MythicPlus.GetOwnedKeystoneLevel();
 	local mapName = self.mapNames[mapId];
+	local timestamp, week = self:TimeStamp();
 
 	if not mapId or not level then
 		return nil;
@@ -402,9 +661,13 @@ function KeystoneManager:GetKeystone(force)
 		end
 
 		self.db.keystones[name] = {
-			mapId = mapId,
-			mapName = mapName,
-			level = level
+			name      = name,
+			class     = class,
+			mapId     = mapId,
+			mapName   = mapName,
+			level     = level,
+			week      = week,
+			timestamp = timestamp,
 		};
 
 		self:UpdateTable(self.ScrollTable);
@@ -519,6 +782,7 @@ function KeystoneManager:UpdateTable()
 			weeklyBest = weeklyBest,
 			mapName = format('|c%s%s|r', color, key.mapName),
 			mapNamePlain = key.mapName,
+			class = key.class,
 			level = key.level,
 			mapId = key.mapId
 		});
@@ -537,7 +801,7 @@ function KeystoneManager:RefreshDataText()
 end
 
 function KeystoneManager:NameAndRealm()
-	return UnitName('player') .. '-' .. GetRealmName();
+	return UnitName('player') .. '-' .. GetRealmName():gsub('%s+', '');
 end
 
 function KeystoneManager:NameWithoutRealm(name)
