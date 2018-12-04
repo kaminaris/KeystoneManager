@@ -192,13 +192,13 @@ function KeystoneManager:ValidateKeys()
 
 	local timestamp, week = self:TimeStamp();
 	for name, keyInfo in pairs(self.db.keystones) do
-		if not keyInfo.week or keyInfo.week < week then
+		if not keyInfo.week or keyInfo.week < week or not keyInfo.guild then
 			self.db.keystones[name] = nil;
 		end
 	end
 
 	for name, keyInfo in pairs(self.db.guildKeys) do
-		if not keyInfo.week or keyInfo.week < week then
+		if not keyInfo.week or keyInfo.week < week or not keyInfo.guild then
 			self.db.guildKeys[name] = nil;
 		end
 	end
@@ -215,25 +215,28 @@ end
 function KeystoneManager:RespondKeys()
 	local msgToSend = '';
 	local ts, week = self:TimeStamp();
+	local currentGuild = GetGuildInfo('player');
 
 	for name, keyInfo in pairs(self.db.keystones) do
-		local shortName = name:gsub('%s+', '')
-		local oneChar = format(
-			'%s:%s:%s:%s:%s:%s:%s_',
-			shortName,
-			keyInfo.class or 'MAGE',
-			keyInfo.mapId,
-			keyInfo.level,
-			'0',
-			week,
-			ts
-		);
+		if keyInfo.guild == currentGuild then
+			local shortName = name:gsub('%s+', '')
+			local oneChar = format(
+				'%s:%s:%s:%s:%s:%s:%s_',
+				shortName,
+				keyInfo.class or 'MAGE',
+				keyInfo.mapId,
+				keyInfo.level,
+				'0',
+				week,
+				ts
+			);
 
-		if string.len(msgToSend .. oneChar) > 250 then
-			C_ChatInfo.SendAddonMessage('AstralKeys', 'sync5 ' .. msgToSend, 'GUILD');
-			msgToSend = '';
-		else
-			msgToSend = msgToSend .. oneChar;
+			if string.len(msgToSend .. oneChar) > 250 then
+				C_ChatInfo.SendAddonMessage('AstralKeys', 'sync5 ' .. msgToSend, 'GUILD');
+				msgToSend = '';
+			else
+				msgToSend = msgToSend .. oneChar;
+			end
 		end
 	end
 
@@ -241,24 +244,27 @@ function KeystoneManager:RespondKeys()
 		C_ChatInfo.SendAddonMessage('AstralKeys', 'sync5 ' .. msgToSend, 'GUILD');
 	end
 
+	msgToSend = '';
 	for name, keyInfo in pairs(self.db.guildKeys) do
-		local shortName = name:gsub('%s+', '')
-		local oneChar = format(
-			'%s:%s:%s:%s:%s:%s:%s_',
-			shortName,
-			keyInfo.class or 'MAGE',
-			keyInfo.mapId,
-			keyInfo.level,
-			'0',
-			week,
-			ts
-		);
+		if keyInfo.mapId and keyInfo.level and keyInfo.guild == currentGuild then
+			local shortName = name:gsub('%s+', '')
+			local oneChar = format(
+				'%s:%s:%s:%s:%s:%s:%s_',
+				shortName,
+				keyInfo.class or 'MAGE',
+				keyInfo.mapId,
+				keyInfo.level,
+				'0',
+				week,
+				ts
+			);
 
-		if string.len(msgToSend .. oneChar) > 250 then
-			C_ChatInfo.SendAddonMessage('AstralKeys', 'sync5 ' .. msgToSend, 'GUILD');
-			msgToSend = '';
-		else
-			msgToSend = msgToSend .. oneChar;
+			if string.len(msgToSend .. oneChar) > 250 then
+				C_ChatInfo.SendAddonMessage('AstralKeys', 'sync5 ' .. msgToSend, 'GUILD');
+				msgToSend = '';
+			else
+				msgToSend = msgToSend .. oneChar;
+			end
 		end
 	end
 
@@ -277,6 +283,8 @@ function KeystoneManager:GatherGuildKeys(message)
 	if not self.db.guildKeys then
 		self.db.guildKeys = {};
 	end
+
+	local guild = GetGuildInfo('player');
 
 	for i = 1, #guildKeys do
 		local unit, class, mapId, level, weekly, week, timestamp = strsplit(':', guildKeys[i]);
@@ -297,6 +305,7 @@ function KeystoneManager:GatherGuildKeys(message)
 				week      = week,
 				weekly    = weekly,
 				timestamp = timestamp,
+				guild     = GetGuildInfo(unit) or guild
 			};
 		end
 	end
@@ -397,18 +406,22 @@ function KeystoneManager:RefreshGuildKeyTable()
 	end
 
 	local data = {};
+	local currentGuild = GetGuildInfo('player');
 
 	for name, keyInfo in pairs(self.db.guildKeys) do
-		local shortName = self:NameWithoutRealm(name);
-		local mapName = self.mapNames[keyInfo.mapId];
+		if keyInfo.guild == nil or keyInfo.guild == currentGuild then
+			local shortName = self:NameWithoutRealm(name);
+			local mapName = self.mapNames[keyInfo.mapId];
 
-		tinsert(data, {
-			name       = shortName,
-			class      = keyInfo.class,
-			weekly     = keyInfo.weekly,
-			mapName    = mapName,
-			level      = keyInfo.level
-		});
+			tinsert(data, {
+				name       = shortName,
+				class      = keyInfo.class,
+				weekly     = keyInfo.weekly,
+				mapName    = mapName,
+				level      = keyInfo.level,
+				guild      = keyInfo.guild or currentGuild
+			});
+		end
 	end
 
 	self.guildKeysWindow.table:SetData(data, true);
@@ -668,6 +681,7 @@ function KeystoneManager:GetKeystone(force)
 			level     = level,
 			week      = week,
 			timestamp = timestamp,
+			guild     = GetGuildInfo('player')
 		};
 
 		self:UpdateTable(self.ScrollTable);
