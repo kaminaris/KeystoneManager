@@ -1,6 +1,6 @@
 ## Title: KeystoneManager
 ## Notes: A list of your keystones
-## Version: 8.0.4
+## Version: 8.0.5
 ## Author: Kaminaris
 ## Interface: 80000
 ## SavedVariables: KeystoneManagerDb

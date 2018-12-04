@@ -409,7 +409,7 @@ function KeystoneManager:RefreshGuildKeyTable()
 	local currentGuild = GetGuildInfo('player');
 
 	for name, keyInfo in pairs(self.db.guildKeys) do
-		if keyInfo.guild == nil or keyInfo.guild == currentGuild then
+		if (keyInfo.guild == nil or keyInfo.guild == currentGuild) and keyInfo.level then
 			local shortName = self:NameWithoutRealm(name);
 			local mapName = self.mapNames[keyInfo.mapId];
 
