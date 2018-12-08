@@ -1,6 +1,7 @@
 local addonName, KeystoneManager = ...;
 
 LibStub('AceAddon-3.0'):NewAddon(KeystoneManager, 'KeystoneManager', 'AceConsole-3.0', 'AceEvent-3.0', 'AceTimer-3.0');
+_G[addonName] = KeystoneManager;
 
 ---@type StdUi
 local StdUi = LibStub('StdUi');

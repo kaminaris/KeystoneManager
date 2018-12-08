@@ -197,7 +197,7 @@ local lastRequested = 0;
 function Comm:RequestGuildKeys()
 	local now = GetTime();
 	if now - lastRequested < 5 then
-		self:Print('Can only request guild keys once per 5 seconds');
+		KeystoneManager:Print('Can only request guild keys once per 5 seconds');
 		return;
 	end
 	lastRequested = now;
