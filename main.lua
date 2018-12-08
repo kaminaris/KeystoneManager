@@ -137,7 +137,8 @@ function KeystoneManager:OnInitialize()
 	end
 
 	self.db = KeystoneManagerDb;
-	
+
+	self:ValidateKeys();
 	self:RegisterOptionWindow();
 
 	self:RegisterChatCommand('keystonemanager', 'ShowWindow');
@@ -163,7 +164,6 @@ end
 function KeystoneManager:PLAYER_ENTERING_WORLD()
 	if self.onceRequested then
 		self:RefreshDataText();
-		self:ValidateKeys();
 		self:GetKeystone();
 		return;
 	else
