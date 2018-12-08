@@ -179,7 +179,6 @@ function KeystoneManager:PLAYER_ENTERING_WORLD()
 
 		self:RefreshDataText();
 		self:GetKeystone();
-		self:RequestGuildKeys();
 
 		self.onceRequested = true;
 	end);
@@ -311,7 +310,6 @@ end
 
 function KeystoneManager:UpdateWeeklyBestAndKeystone()
 	C_Timer.After(2, function()
-		KeystoneManager:UpdateWeeklyBest();
 		KeystoneManager:GetKeystone();
 	end);
 end
@@ -532,6 +530,7 @@ function KeystoneManager:GetKeystone(force)
 
 	local mapId = C_MythicPlus.GetOwnedKeystoneChallengeMapID();
 	local level = C_MythicPlus.GetOwnedKeystoneLevel();
+	local weeklyBest = self:UpdateWeeklyBest();
 	local mapName = self.mapNames[mapId];
 	local timestamp, week = self:TimeStamp();
 
@@ -546,15 +545,16 @@ function KeystoneManager:GetKeystone(force)
 		end
 
 		self.db.keystones[name] = {
-			name      = name,
-			shortName = shortName,
-			class     = class,
-			mapId     = mapId,
-			mapName   = mapName,
-			level     = level,
-			week      = week,
-			timestamp = timestamp,
-			guild     = GetGuildInfo('player')
+			name       = name,
+			shortName  = shortName,
+			class      = class,
+			mapId      = mapId,
+			mapName    = mapName,
+			level      = level,
+			week       = week,
+			weeklyBest = weeklyBest,
+			timestamp  = timestamp,
+			guild      = GetGuildInfo('player')
 		};
 
 		self:UpdateTable(self.ScrollTable);
@@ -579,8 +579,10 @@ function KeystoneManager:UpdateWeeklyBest()
 			best = level;
 		end
 	end
-	
-	self.db.weeklyBest[name] = best;
+
+	if self.db.keystones[name] then
+		self.db.keystones[name].weeklyBest = best;
+	end
 	
 	return best;
 end

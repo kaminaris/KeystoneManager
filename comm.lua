@@ -4,6 +4,9 @@ local ArrayPush = tinsert;
 local ArrayRemove = tremove;
 local StringFormat = format;
 local StringSplit = strsplit;
+local IPairs = ipairs;
+local Pairs = pairs;
+local ToNumber = tonumber;
 
 local GetTime = GetTime;
 local SendAddonMessage = C_ChatInfo.SendAddonMessage;
@@ -17,7 +20,12 @@ Comm.SendingInProgress = false;
 function Comm:Enable()
 	self.db = KeystoneManager.db;
 	self:RegisterEvent('CHAT_MSG_ADDON', 'ChatAddonMsg');
+	self:RegisterEvent('PLAYER_ENTERING_WORLD', 'PlayerEnteringWorld');
 	RegisterAddonMessagePrefix('AstralKeys');
+end
+
+function Comm:PlayerEnteringWorld()
+	self:RequestGuildKeys();
 end
 
 --- Pure communication protocols ---------------------------------------------------------------------------------------
@@ -50,7 +58,7 @@ function Comm:Ticker()
 end
 
 function Comm:AddToQueue(prefix, data, channel)
-	for _, item in ipairs(self.Queue) do
+	for _, item in IPairs(self.Queue) do
 		if item.data == data and item.channel == channel then
 			return;
 		end
@@ -105,28 +113,28 @@ function Comm:FormatKeystone(keyInfo)
 		keyInfo.class or 'MAGE',
 		keyInfo.mapId,
 		keyInfo.level,
-		keyInfo.weeklyBest,
+		keyInfo.weeklyBest or '0',
 		week,
 		timestamp
 	);
 end
 
 local lastResponded = 0;
-function KeystoneManager:RespondKeys()
+function Comm:RespondKeys()
 	local now = GetTime();
 	if now - lastResponded < 5 then return; end
 	lastResponded = now;
 
 	local currentGuild = GetGuildInfo('player');
 
-	for name, keyInfo in pairs(self.db.keystones) do
+	for name, keyInfo in Pairs(self.db.keystones) do
 		if keyInfo.guild == currentGuild then
 			local oneChar = Comm:FormatKeystone(keyInfo);
 			self:AddToQueue('sync5', oneChar);
 		end
 	end
 
-	for name, keyInfo in pairs(self.db.guildKeys) do
+	for name, keyInfo in Pairs(self.db.guildKeys) do
 		-- Send only to current guild and not self keys
 		if keyInfo.guild == currentGuild and not self.db.keystones[name] then
 			local oneChar = self:FormatKeystone(keyInfo);
@@ -142,7 +150,7 @@ local function trim(s)
 	return (s:gsub("^%s*(.-)%s*$", "%1"))
 end
 
-function KeystoneManager:GatherGuildKeys(message)
+function Comm:GatherGuildKeys(message)
 	local guildKeys = {StringSplit('_', message)};
 
 	if not self.db.guildKeys then
@@ -152,16 +160,16 @@ function KeystoneManager:GatherGuildKeys(message)
 	local guild = GetGuildInfo('player');
 
 	for i = 1, #guildKeys do
-		local name, class, mapId, level, weekly, week, timestamp = strsplit(':', guildKeys[i]);
+		local name, class, mapId, level, weekly, week, timestamp = StringSplit(':', guildKeys[i]);
 		name = trim(name);
 
 		if name and name ~= nil and name ~= '' and not self.db.keystones[name] then
 			local shortName = KeystoneManager:NameWithoutRealm(name)
-			mapId = tonumber(mapId);
-			level = tonumber(level);
-			weekly = tonumber(weekly);
-			week = tonumber(week);
-			timestamp = tonumber(timestamp);
+			mapId = ToNumber(mapId);
+			level = ToNumber(level);
+			weekly = ToNumber(weekly);
+			week = ToNumber(week);
+			timestamp = ToNumber(timestamp);
 
 			if mapId and level then
 				local mapName = KeystoneManager.mapNames[mapId];
@@ -182,11 +190,11 @@ function KeystoneManager:GatherGuildKeys(message)
 		end
 	end
 
-	self:RefreshGuildKeyTable();
+	KeystoneManager:RefreshGuildKeyTable();
 end
 
 local lastRequested = 0;
-function KeystoneManager:RequestGuildKeys()
+function Comm:RequestGuildKeys()
 	local now = GetTime();
 	if now - lastRequested < 5 then
 		self:Print('Can only request guild keys once per 5 seconds');
@@ -194,5 +202,6 @@ function KeystoneManager:RequestGuildKeys()
 	end
 	lastRequested = now;
 
-	SendAddonMessage('AstralKeys', 'request', 'GUILD');
+	self:AddToQueue('request');
+	self:StartSending();
 end
