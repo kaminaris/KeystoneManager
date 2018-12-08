@@ -109,7 +109,7 @@ function Comm:FormatKeystone(keyInfo)
 
 	return StringFormat(
 		'%s:%s:%s:%s:%s:%s:%s_',
-		keyInfo.shortName,
+		keyInfo.name,
 		keyInfo.class or 'MAGE',
 		keyInfo.mapId,
 		keyInfo.level,
@@ -163,8 +163,9 @@ function Comm:GatherGuildKeys(message)
 		local name, class, mapId, level, weekly, week, timestamp = StringSplit(':', guildKeys[i]);
 		name = trim(name);
 
-		if name and name ~= nil and name ~= '' and not self.db.keystones[name] then
-			local shortName = KeystoneManager:NameWithoutRealm(name)
+		if name and name ~= nil and name ~= '' and name:find('-') and not self.db.keystones[name] then
+			local shortName = KeystoneManager:NameWithoutRealm(name);
+
 			mapId = ToNumber(mapId);
 			level = ToNumber(level);
 			weekly = ToNumber(weekly);
