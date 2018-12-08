@@ -154,6 +154,7 @@ function KeystoneManager:OnInitialize()
 	self:RegisterEvent('BAG_UPDATE_DELAYED', 'GetKeystone');
 
 	self:EnableModule('Comm');
+	self.Comm = self:GetModule('Comm');
 
 	if not ldb:GetDataObjectByName('KeystoneManager') then
 		ldb:NewDataObject('KeystoneManager', kmldbObject);
@@ -224,7 +225,7 @@ function KeystoneManager:ShowGuildKeys()
 	StdUi:EasyLayout(guildKeysWindow, { padding = { top = 40 } });
 
 	local refreshBtn = StdUi:Button(guildKeysWindow, nil, 20, 'Refresh');
-	refreshBtn:SetScript('OnClick', function () self:RequestGuildKeys(); self:RefreshGuildKeyTable(); end);
+	refreshBtn:SetScript('OnClick', function () self.Comm:RequestGuildKeys(); self:RefreshGuildKeyTable(); end);
 
 	local clearBtn = StdUi:Button(guildKeysWindow, nil, 20, 'Clear');
 	clearBtn:SetScript('OnClick', function () self:ClearGuildKeys(); self:RefreshGuildKeyTable(); end);
