@@ -9,102 +9,170 @@ local Pairs = pairs;
 local ToNumber = tonumber;
 
 local GetTime = GetTime;
-local SendAddonMessage = C_ChatInfo.SendAddonMessage;
-local RegisterAddonMessagePrefix = C_ChatInfo.RegisterAddonMessagePrefix;
+local GetGuildInfo = GetGuildInfo;
 
-local Comm = KeystoneManager:NewModule('Comm', 'AceTimer-3.0', 'AceEvent-3.0');
-Comm.Queue = {};
+local LibDeflate = LibStub:GetLibrary('LibDeflate');
+
+local Comm = KeystoneManager:NewModule('Comm', 'AceTimer-3.0', 'AceEvent-3.0', 'AceSerializer-3.0', 'AceComm-3.0');
 Comm.MessagePrefix = 'AstralKeys';
+Comm.MessagePrefix2 = 'KeystoneManager';
 Comm.SendingInProgress = false;
+Comm.CurrentGuild = nil;
+
+--- Generic functions --------------------------------------------------------------------------------------------------
 
 function Comm:Enable()
 	self.db = KeystoneManager.db;
-	self:RegisterEvent('CHAT_MSG_ADDON', 'ChatAddonMsg');
 	self:RegisterEvent('PLAYER_ENTERING_WORLD', 'PlayerEnteringWorld');
-	RegisterAddonMessagePrefix('AstralKeys');
+	self:RegisterComm(self.MessagePrefix, 'AstralHandleMessage');
+	self:RegisterComm(self.MessagePrefix2, 'HandleMessage');
+	self.CurrentGuild = GetGuildInfo('player');
 end
 
 function Comm:PlayerEnteringWorld()
 	self:RequestGuildKeys();
 end
 
---- Pure communication protocols ---------------------------------------------------------------------------------------
 
-function Comm:StartSending()
-	if self.SendingInProgress then
-		return;
-	end
-
-	self.timer = self:ScheduleRepeatingTimer('Ticker', 0.2);
+function Comm:CompressAndEncode(input)
+	local compressed = LibDeflate:CompressDeflate(self:Serialize(input));
+	return LibDeflate:EncodeForWoWAddonChannel(compressed);
 end
 
-function Comm:Ticker()
-	if #self.Queue == 0 then
-		if self.timer then
-			self:CancelTimer(self.timer);
-			self.SendingInProgress = false;
-		end
-		return;
+function Comm:DecompressAndDecode(input)
+	local decoded = LibDeflate:DecodeForWoWAddonChannel(input);
+	local success, deserialized = self:Deserialize(LibDeflate:DecompressDeflate(decoded));
+	if not success then
+		KeystoneManager:Print('There was issue with receiving guild keys, please report this to Addon Author.')
 	end
-
-	local messageToSend = self:PopQueue();
-	if not messageToSend and self.timer then
-		self:CancelTimer(self.timer);
-		self.SendingInProgress = false;
-		return;
-	end
-
-	self:SendMessage(messageToSend);
+	return deserialized;
 end
 
-function Comm:AddToQueue(prefix, data, channel)
-	for _, item in IPairs(self.Queue) do
-		if item.data == data and item.channel == channel then
-			return;
+function Comm:CombineKeystones()
+	local keystones = {};
+
+	for name, keyInfo in Pairs(self.db.guildKeys) do
+		-- Send only to current guild and not self keys
+		if keyInfo.guild == self.CurrentGuild and not self.db.keystones[name] then
+			keystones[name] = keyInfo;
 		end
 	end
 
-	ArrayPush(self.Queue, {
-		prefix  = prefix,
-		data    = data,
-		channel = channel
-	});
-end
-
-function Comm:PopQueue()
-	return ArrayRemove(self.Queue, 1);
-end
-
-function Comm:SendMessage(entry)
-	local message = entry.prefix;
-	if entry.data and entry.data:len() > 0 then
-		message = message .. ' ' .. entry.data;
+	-- Override guild keys with own keys
+	for name, keyInfo in Pairs(self.db.keystones) do
+		if keyInfo.guild == self.CurrentGuild then
+			keystones[name] = keyInfo;
+		end
 	end
 
-	SendAddonMessage(self.MessagePrefix, message, entry.channel or 'GUILD');
+	return keystones;
 end
 
-function Comm:ChatAddonMsg(_, prefix, message, distribution, sender)
+local lastRequested = 0;
+function Comm:RequestGuildKeys()
+	local now = GetTime();
+	if now - lastRequested < 5 then
+		KeystoneManager:Print('Can only request guild keys once per 5 seconds');
+		return;
+	end
+	lastRequested = now;
+
+	self:SendCommMessage(self.MessagePrefix, 'request', 'GUILD');
+	self:SendCommand('request');
+end
+
+--- KeystoneManager communication --------------------------------------------------------------------------------------
+
+function Comm:SendCommand(command, data)
+	local request = {
+		command = command,
+		data = data
+	};
+
+	local message = self:CompressAndEncode(request);
+	self:SendCommMessage(self.MessagePrefix2, message, 'GUILD');
+end
+
+function Comm:HandleMessage(prefix, message, _, sender)
+	if prefix ~= self.MessagePrefix2 or sender == UnitName('player') then
+		return;
+	end
+
+	local request = self:DecompressAndDecode(message);
+
+	if not request then
+		KeystoneManager:Print('Communication error from: ' .. sender);
+		return;
+	end
+
+	if request.command == 'request' then
+		self:SendAllKeys();
+	elseif request.command == 'updateKeys' then
+		Comm:ReceiveKeys(request.data);
+	end
+end
+
+function Comm:SendAllKeys()
+	local keystones = self:CombineKeystones();
+
+	local serializedKeys = self:CompressAndEncode(keystones);
+	self:SendCommand('updateKeys', serializedKeys);
+end
+
+function Comm:ReceiveKeys(keystones)
+	for name, keyInfo in Pairs(keystones) do
+		if not self.db.guildKeys[name] then
+			self.db.guildKeys[name] = keyInfo;
+		else
+			local dbKey = self.db.guildKeys[name];
+
+			if dbKey.timestamp < keyInfo.timestamp then
+				self.db.guildKeys[name] = keyInfo;
+			else
+				if dbKey.weeklyBest < keyInfo.weeklyBest then
+					dbKey.weeklyBest = keyInfo.weeklyBest;
+				end
+			end
+		end
+	end
+
+	KeystoneManager:RefreshGuildKeyTable();
+end
+
+function Comm:SendNewKey()
+	local keystones = {};
+
 	local name = KeystoneManager:NameAndRealm();
-	if sender == name then
+	local keystone = KeystoneManager.db.keystones[name];
+	if not keystone then
+		-- Should not happen
+		KeystoneManager:Print('Error occurred while trying to update keystone');
 		return;
 	end
 
-	if prefix == 'AstralKeys' then
-		local method = message:match('%w+');
+	-- Just one keystone
+	keystones[name] = keystone;
+	local serializedKeys = self:CompressAndEncode(keystones);
+	self:SendCommand('updateKeys', serializedKeys);
+end
 
-		if method == 'request' then
-			self:RespondKeys();
-		elseif method == 'sync5' then
-			message = message:sub(6);
-			self:GatherGuildKeys(message);
-		end
+--- AstralKeys communication -------------------------------------------------------------------------------------------
+
+function Comm:AstralHandleMessage(prefix, message, _, sender)
+	if prefix ~= self.MessagePrefix or sender == UnitName('player') then
+		return;
+	end
+
+	local method = message:match('%w+');
+	if method == 'request' then
+		self:AstralSendAllKeys();
+	elseif method == 'sync5' then
+		message = message:sub(6);
+		self:AstralReceiveKeys(message);
 	end
 end
 
---- Keystone formatting, sending and requesting ------------------------------------------------------------------------
-
-function Comm:FormatKeystone(keyInfo)
+function Comm:AstralFormatKeystone(keyInfo)
 	local timestamp, week = KeystoneManager:TimeStamp();
 
 	return StringFormat(
@@ -120,44 +188,44 @@ function Comm:FormatKeystone(keyInfo)
 end
 
 local lastResponded = 0;
-function Comm:RespondKeys()
+function Comm:AstralSendAllKeys()
 	local now = GetTime();
 	if now - lastResponded < 5 then return; end
 	lastResponded = now;
 
-	local currentGuild = GetGuildInfo('player');
+	local keystones = self:CombineKeystones();
 
-	for name, keyInfo in Pairs(self.db.keystones) do
-		if keyInfo.guild == currentGuild then
-			local oneChar = Comm:FormatKeystone(keyInfo);
-			self:AddToQueue('sync5', oneChar);
-		end
+	-- Respond to AstralKeys
+	for _, keyInfo in IPairs(keystones) do
+		local oneChar = Comm:AstralFormatKeystone(keyInfo);
+		self:SendCommMessage(self.MessagePrefix, 'sync5 ' .. oneChar, 'GUILD');
 	end
-
-	for name, keyInfo in Pairs(self.db.guildKeys) do
-		-- Send only to current guild and not self keys
-		if keyInfo.guild == currentGuild and not self.db.keystones[name] then
-			local oneChar = self:FormatKeystone(keyInfo);
-			self:AddToQueue('sync5', oneChar);
-		end
-	end
-
-	self:StartSending();
 end
 
+function Comm:AstralSendNewKey()
+	local name = KeystoneManager:NameAndRealm();
+	local keystone = KeystoneManager.db.keystones[name];
+	if not keystone then
+		-- Should not happen
+		KeystoneManager:Print('Error occurred while trying to update keystone');
+		return;
+	end
+
+	local oneChar = Comm:AstralFormatKeystone(keystone);
+	self:SendCommMessage(self.MessagePrefix, 'sync5 ' .. oneChar, 'GUILD');
+end
 
 local function trim(s)
-	return (s:gsub("^%s*(.-)%s*$", "%1"))
+	return (s:gsub('^%s*(.-)%s*$', '%1'))
 end
 
-function Comm:GatherGuildKeys(message)
+-- AstralKeys compat
+function Comm:AstralReceiveKeys(message)
 	local guildKeys = {StringSplit('_', message)};
 
 	if not self.db.guildKeys then
 		self.db.guildKeys = {};
 	end
-
-	local guild = GetGuildInfo('player');
 
 	for i = 1, #guildKeys do
 		local name, class, mapId, level, weekly, week, timestamp = StringSplit(':', guildKeys[i]);
@@ -175,34 +243,42 @@ function Comm:GatherGuildKeys(message)
 			if mapId and level then
 				local mapName = KeystoneManager.mapNames[mapId];
 
-				self.db.guildKeys[name] = {
-					name      = name,
-					shortName = shortName,
-					class     = class,
-					mapId     = mapId,
-					mapName   = mapName,
-					level     = level,
-					week      = week,
-					weekly    = weekly,
-					timestamp = timestamp,
-					guild     = GetGuildInfo(name) or guild
+				if weekly == 1 then
+					weekly = 10;
+				end
+
+				local newKey = {
+					name       = name,
+					shortName  = shortName,
+					class      = class,
+					mapId      = mapId,
+					mapName    = mapName,
+					level      = level,
+					week       = week,
+					weeklyBest = weekly,
+					timestamp  = timestamp,
+					guild      = GetGuildInfo(name) or self.CurrentGuild
 				};
+
+				if not self.db.guildKeys[name] then
+					self.db.guildKeys[name] = newKey;
+				else
+					local oldKey = self.db.guildKeys[name];
+
+					-- Don't update if we had new key
+					if oldKey.timestamp < newKey.timestamp then
+						local oldWeeklyBest = oldKey.weeklyBest;
+						self.db.guildKeys[name] = newKey;
+
+						-- If old key had higher weeklyBest we keep it
+						if newKey.weeklyBest < oldKey.weeklyBest then
+							self.db.guildKeys[name].weeklyBest = oldWeeklyBest;
+						end
+					end
+				end
 			end
 		end
 	end
 
 	KeystoneManager:RefreshGuildKeyTable();
-end
-
-local lastRequested = 0;
-function Comm:RequestGuildKeys()
-	local now = GetTime();
-	if now - lastRequested < 5 then
-		KeystoneManager:Print('Can only request guild keys once per 5 seconds');
-		return;
-	end
-	lastRequested = now;
-
-	self:AddToQueue('request');
-	self:StartSending();
 end

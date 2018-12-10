@@ -10,14 +10,18 @@
 Libs\LibStub\LibStub.lua
 Libs\StdUi\StdUi.xml
 
-Libs\CallbackHandler-1.0\CallbackHandler-1.0.xml
-Libs\AceAddon-3.0\AceAddon-3.0.xml
-Libs\AceTimer-3.0\AceTimer-3.0.xml
-Libs\AceEvent-3.0\AceEvent-3.0.xml
-Libs\AceConsole-3.0\AceConsole-3.0.xml
+Libs\CallbackHandler-1.0\CallbackHandler-1.0.lua
+Libs\AceAddon-3.0\AceAddon-3.0.lua
+Libs\AceTimer-3.0\AceTimer-3.0.lua
+Libs\AceEvent-3.0\AceEvent-3.0.lua
+Libs\AceConsole-3.0\AceConsole-3.0.lua
+Libs\AceComm-3.0\AceComm-3.0.lua
+Libs\AceComm-3.0\ChatThrottleLib.lua
+Libs\AceSerializer-3.0\AceSerializer-3.0.lua
+Libs\LibDeflate\LibDeflate.lua
 
 Libs\LibDataBroker-1.1\LibDataBroker-1.1.lua
-Libs\LibDBIcon-1.0\lib.xml
+Libs\LibDBIcon-1.0\LibDBIcon-1.0.lua
 
 main.lua
 comm.lua

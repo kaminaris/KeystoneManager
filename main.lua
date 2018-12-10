@@ -198,7 +198,7 @@ function KeystoneManager:ValidateKeys()
 	end
 
 	for name, keyInfo in pairs(self.db.guildKeys) do
-		if not keyInfo.week or keyInfo.week < week or not keyInfo.guild or not keyInfo.shortName then
+		if not keyInfo.week or keyInfo.week < week or not keyInfo.guild or not keyInfo.shortName or not keyInfo.weeklyBest then
 			self.db.guildKeys[name] = nil;
 		end
 	end
@@ -244,7 +244,7 @@ function KeystoneManager:ShowGuildKeys()
 		{
 			name  = 'Weekly Best',
 			width = 100,
-			index = 'weekly'
+			index = 'weeklyBest'
 		},
 		{
 			name  = 'Dungeon',
@@ -289,7 +289,7 @@ function KeystoneManager:RefreshGuildKeyTable()
 			tinsert(data, {
 				name       = keyInfo.shortName,
 				class      = keyInfo.class,
-				weekly     = keyInfo.weekly,
+				weeklyBest = keyInfo.weeklyBest,
 				mapName    = keyInfo.mapName,
 				level      = keyInfo.level,
 				guild      = keyInfo.guild or currentGuild
@@ -311,7 +311,7 @@ function KeystoneManager:GetMapInfo()
 end
 
 function KeystoneManager:UpdateWeeklyBestAndKeystone()
-	C_Timer.After(2, function()
+	C_Timer.After(3, function()
 		KeystoneManager:GetKeystone();
 	end);
 end
@@ -540,7 +540,9 @@ function KeystoneManager:GetKeystone(force)
 		return nil;
 	end
 
-	if force or not keystone or (level ~= keystone.level or mapId ~= keystone.mapId) then
+	local keystoneChanged = not keystone or (level ~= keystone.level or mapId ~= keystone.mapId);
+
+	if force or keystoneChanged then
 		--keystone has changed
 		if self.db.announce and not force then
 			SendChatMessage('Keystone Manager: ' .. mapName .. ' +' .. level, 'PARTY');
@@ -558,6 +560,11 @@ function KeystoneManager:GetKeystone(force)
 			timestamp  = timestamp,
 			guild      = GetGuildInfo('player')
 		};
+
+		if keystoneChanged then
+			self.Comm:SendNewKey();
+			self.Comm:AstralSendNewKey();
+		end
 
 		self:UpdateTable(self.ScrollTable);
 		self:RefreshDataText();
@@ -583,7 +590,15 @@ function KeystoneManager:UpdateWeeklyBest()
 	end
 
 	if self.db.keystones[name] then
+		local oldBest = self.db.keystones[name].weeklyBest;
 		self.db.keystones[name].weeklyBest = best;
+
+		if oldBest ~= best then
+			local timestamp = self:TimeStamp();
+			self.db.keystones[name].timestamp = timestamp;
+			self.Comm:SendNewKey();
+			self.Comm:AstralSendNewKey();
+		end
 	end
 	
 	return best;
