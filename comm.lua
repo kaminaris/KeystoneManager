@@ -239,6 +239,9 @@ function Comm:AstralReceiveKeys(message)
 			weekly = ToNumber(weekly);
 			week = ToNumber(week);
 			timestamp = ToNumber(timestamp);
+			if not timestamp then
+				timestamp = 1;
+			end
 
 			if mapId and level then
 				local mapName = KeystoneManager.mapNames[mapId];
@@ -266,7 +269,7 @@ function Comm:AstralReceiveKeys(message)
 					local oldKey = self.db.guildKeys[name];
 
 					-- Don't update if we had new key
-					if oldKey.timestamp < newKey.timestamp then
+					if oldKey.timestamp == 1 or oldKey.timestamp < newKey.timestamp then
 						local oldWeeklyBest = oldKey.weeklyBest;
 						self.db.guildKeys[name] = newKey;
 
