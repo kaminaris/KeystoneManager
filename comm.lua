@@ -35,15 +35,13 @@ end
 
 
 function Comm:CompressAndEncode(input)
-	--local compressed = LibDeflate:CompressDeflate(self:Serialize(input));
-	--return LibDeflate:EncodeForWoWAddonChannel(compressed);
-	return self:Serialize(input);
+	local compressed = LibDeflate:CompressDeflate(self:Serialize(input));
+	return LibDeflate:EncodeForWoWAddonChannel(compressed);
 end
 
 function Comm:DecompressAndDecode(input)
-	--local decoded = LibDeflate:DecodeForWoWAddonChannel(input);
-	--local success, deserialized = self:Deserialize(LibDeflate:DecompressDeflate(decoded));
-	local success, deserialized = self:Deserialize(input);
+	local decoded = LibDeflate:DecodeForWoWAddonChannel(input);
+	local success, deserialized = self:Deserialize(LibDeflate:DecompressDeflate(decoded));
 	if not success then
 		KeystoneManager:Print('There was issue with receiving guild keys, please report this to Addon Author.')
 	end
@@ -110,7 +108,12 @@ function Comm:HandleMessage(prefix, message, _, sender)
 	if request.command == 'request' then
 		self:SendAllKeys();
 	elseif request.command == 'updateKeys' then
-		Comm:ReceiveKeys(request.data);
+		local success, data = self:Deserialize(request.data);
+		if success then
+			Comm:ReceiveKeys(data);
+		else
+			KeystoneManager:Print('Communication error with: ' .. sender)
+		end
 	end
 end
 
