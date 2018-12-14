@@ -108,12 +108,8 @@ function Comm:HandleMessage(prefix, message, _, sender)
 	if request.command == 'request' then
 		self:SendAllKeys();
 	elseif request.command == 'updateKeys' then
-		local success, data = self:Deserialize(request.data);
-		if success then
-			Comm:ReceiveKeys(data);
-		else
-			KeystoneManager:Print('Communication error with: ' .. sender)
-		end
+		local data = self:DecompressAndDecode(request.data);
+		Comm:ReceiveKeys(data);
 	end
 end
 
@@ -175,6 +171,9 @@ function Comm:AstralHandleMessage(prefix, message, _, sender)
 		self:AstralSendAllKeys();
 	elseif method == 'sync5' then
 		message = message:sub(6);
+		self:AstralReceiveKeys(message);
+	elseif method == 'updateV8' then
+		message = message:sub(9);
 		self:AstralReceiveKeys(message);
 	end
 end
