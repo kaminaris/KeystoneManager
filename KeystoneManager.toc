@@ -2,7 +2,7 @@
 ## Notes: A list of your keystones
 ## Version: 8.0.6
 ## Author: Kaminaris
-## Interface: 80000
+## Interface: 80100
 ## SavedVariables: KeystoneManagerDb
 ## X-Curse-Project-ID: 254899
 ## X-WoWI-ID: 24817
