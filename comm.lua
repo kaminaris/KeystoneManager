@@ -280,7 +280,7 @@ function Comm:AstralReceiveKeys(message)
 						self.db.guildKeys[name] = newKey;
 
 						-- If old key had higher weeklyBest we keep it
-						if newKey.weeklyBest < oldKey.weeklyBest then
+						if not newKey.weeklyBest or newKey.weeklyBest < oldKey.weeklyBest then
 							self.db.guildKeys[name].weeklyBest = oldWeeklyBest;
 						end
 					end
