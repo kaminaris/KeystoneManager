@@ -5,8 +5,6 @@ _G[addonName] = KeystoneManager;
 
 ---@type StdUi
 local StdUi = LibStub('StdUi');
-local icon = LibStub('LibDBIcon-1.0');
-local ldb = LibStub:GetLibrary('LibDataBroker-1.1');
 
 local shortNames = {
 	[197] = 'EOA',
@@ -33,7 +31,7 @@ local shortNames = {
 	[251] = 'UNDR',
 	[252] = 'SOTS',
 	[353] = 'SIEGE',
-}
+};
 
 local activities = {
 	[197] = 459,
@@ -60,84 +58,10 @@ local activities = {
 	[251] = 507,
 	[252] = 522,
 	[353] = 534,
-}
-
-local defaults = {
-	enabled    = true,
-	announce   = true,
-	keystones  = {},
-	target     = 'GUILD',
-	whisper    = '',
-	minLevel   = 0,
-	maxLevel   = 20,
-	ldbStorage = {
-		hide = false
-	}
 };
-
-local kmldbObject = {
-	type = 'launcher',
-	text = 'Keystone Manager',
-	label = 'Keystone Manager',
-	icon = 'Interface\\Icons\\INV_Relics_Hourglass',
-	OnClick = function() KeystoneManager:ShowWindow(); end,
-	OnTooltipShow = function(tooltip)
-
-		local info = KeystoneManager:GetCurrentKeystoneInfo();
-		local name, shortName = KeystoneManager:NameAndRealm();
-
-		if info then
-			tooltip:AddLine('Current:');
-			tooltip:AddDoubleLine(
-				format('|cffffffff%s|r', shortName),
-				KeystoneManager:FormatKeystone(info)
-			);
-			tooltip:AddLine(' ');
-		end
-
-
-		tooltip:AddLine('Other Keys:');
-		for char, keyInfo in pairs(KeystoneManager.db.keystones) do
-			if name ~= char then
-				tooltip:AddDoubleLine(
-					format('|cffffffff%s|r', keyInfo.shortName),
-					KeystoneManager:FormatKeystone(keyInfo)
-				);
-			end
-		end
-	end,
-};
-
-function KeystoneManager:RegisterOptionWindow()
-	if self.optionsFrame then
-		return;
-	end
-	
-	self.optionsFrame = StdUi:PanelWithTitle(UIParent, 100, 100, 'Keystone Manager');
-	self.optionsFrame.name = 'Keystone Manager';
-	self.optionsFrame:Hide();
-
-	local enabled = StdUi:Checkbox(self.optionsFrame, 'Enable Addon');
-	if self.db.enabled then enabled:SetChecked(true); end
-	enabled.OnValueChanged = function(_, flag) KeystoneManager.db.enabled = flag; end
-	
-	local announce = StdUi:Checkbox(self.optionsFrame, 'Announce new key in party channel');
-	if self.db.announce then announce:SetChecked(true);	end
-	announce.OnValueChanged = function(_, flag)	KeystoneManager.db.announce = flag;	end
-
-
-	StdUi:GlueTop(enabled, self.optionsFrame, 10, -40, 'LEFT');
-	StdUi:GlueBelow(announce, enabled, 0, -10, 'LEFT');
-
-	InterfaceOptions_AddCategory(self.optionsFrame);
-end
 
 function KeystoneManager:OnInitialize()
-	if not KeystoneManagerDb or type(KeystoneManagerDb) ~= 'table' or KeystoneManagerDb.global then
-		KeystoneManagerDb = defaults;
-	end
-
-	self.db = KeystoneManagerDb;
+	self:InitializeDatabase();
 
 	self:ValidateKeys();
 	self:RegisterOptionWindow();
@@ -145,6 +69,7 @@ function KeystoneManager:OnInitialize()
 	self:RegisterChatCommand('keystonemanager', 'ShowWindow');
 	self:RegisterChatCommand('keylist', 'ShowWindow');
 	self:RegisterChatCommand('keyprint', 'PrintKeystone');
+	self:RegisterChatCommand('keyreport', 'ReportKeys');
 
 	self:RegisterEvent('PLAYER_ENTERING_WORLD');
 
@@ -156,11 +81,6 @@ function KeystoneManager:OnInitialize()
 
 	self:EnableModule('Comm');
 	self.Comm = self:GetModule('Comm');
-
-	if not ldb:GetDataObjectByName('KeystoneManager') then
-		ldb:NewDataObject('KeystoneManager', kmldbObject);
-		icon:Register('KeystoneManager', kmldbObject, self.db.ldbStorage);
-	end
 end
 
 function KeystoneManager:PLAYER_ENTERING_WORLD()
@@ -472,8 +392,7 @@ function KeystoneManager:GetKeysText()
 	local text = '';
 	for char, key in pairs(self.db.keystones) do
 		if 	key.level >= self.db.minLevel and
-			key.level <= self.db.maxLevel and
-			not self.db.excludes[key.mapId]
+			key.level <= self.db.maxLevel
 		then
 			text = text .. self:NameWithoutRealm(char) .. ' - ' .. key.mapName .. ' +' .. key.level .. '\n';
 		end
@@ -623,8 +542,7 @@ function KeystoneManager:ReportKeys()
 
 	for char, key in pairs(self.db.keystones) do
 		if  key.level >= self.db.minLevel and
-			key.level <= self.db.maxLevel and
-			not self.db.excludes[key.mapId]
+			key.level <= self.db.maxLevel
 		then
 			SendChatMessage(
 				self:NameWithoutRealm(char) .. ' - ' .. key.mapName .. ' +' .. key.level,
@@ -691,15 +609,6 @@ function KeystoneManager:UpdateTable()
 	table:SetData(tableData, true);
 end
 
-function KeystoneManager:RefreshDataText()
-	local info = self:GetCurrentKeystoneInfo();
-	if info then
-		kmldbObject.text = self:GetShortInfo(info);
-	else
-		kmldbObject.text = 'Keystone Manager';
-	end
-end
-
 function KeystoneManager:NameAndRealm()
 	local playerName = UnitName('player');
 	return playerName .. '-' .. GetRealmName():gsub('%s+', ''), playerName;
@@ -720,13 +629,7 @@ function KeystoneManager:GetShortInfo(info)
 end
 
 function KeystoneManager:GetKeystoneColor(info)
-	if self.db.excludes[info.mapId] then
-		return 'ffc41f3b';
-	end
-
 	local quality = 2;
-
 	local _, _, _, color = GetItemQualityColor(quality);
-
 	return color;
 end

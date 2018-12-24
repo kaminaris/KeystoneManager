@@ -1,6 +1,6 @@
 ## Title: KeystoneManager
 ## Notes: A list of your keystones
-## Version: 8.0.7
+## Version: 8.0.8
 ## Author: Kaminaris
 ## Interface: 80100
 ## SavedVariables: KeystoneManagerDb
@@ -23,5 +23,6 @@ Libs\LibDeflate\LibDeflate.lua
 Libs\LibDataBroker-1.1\LibDataBroker-1.1.lua
 Libs\LibDBIcon-1.0\LibDBIcon-1.0.lua
 
-main.lua
-comm.lua
+Main.lua
+Options.lua
+Comm.lua
