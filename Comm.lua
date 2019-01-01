@@ -277,10 +277,11 @@ function Comm:AstralReceiveKeys(message)
 					-- Don't update if we had new key
 					if oldKey.timestamp == 1 or oldKey.timestamp < newKey.timestamp then
 						local oldWeeklyBest = oldKey.weeklyBest;
+						local newWeeklyBest = newKey.weeklyBest;
 						self.db.guildKeys[name] = newKey;
 
 						-- If old key had higher weeklyBest we keep it
-						if not newKey.weeklyBest or newKey.weeklyBest < oldKey.weeklyBest then
+						if oldWeeklyBest and (not newWeeklyBest or newWeeklyBest < oldKey.weeklyBest) then
 							self.db.guildKeys[name].weeklyBest = oldWeeklyBest;
 						end
 					end
