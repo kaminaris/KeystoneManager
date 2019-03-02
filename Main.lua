@@ -495,18 +495,7 @@ end
 function KeystoneManager:UpdateWeeklyBest()
 	local name = self:NameAndRealm();
 
-	local best = 0;
-	for mapId, _ in pairs(self.mapNames) do
-		local _, level = C_MythicPlus.GetWeeklyBestForMap(mapId);
-		
-		if not level then
-			level = 0;
-		end
-
-		if level > best then
-			best = level;
-		end
-	end
+	local best = C_MythicPlus.GetWeeklyChestRewardLevel();
 
 	if self.db.keystones[name] then
 		local oldBest = self.db.keystones[name].weeklyBest;
