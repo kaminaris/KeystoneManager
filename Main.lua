@@ -427,12 +427,21 @@ end
 
 local usResetTime = 1500390000 -- US Tuesday at reset
 local euResetTime = 1500447600 -- EU Wednesday at reset
+local cnResetTime = 1500505200 -- CN Thursday at reset
 
 function KeystoneManager:TimeStamp()
 	local region = GetCurrentRegion()
 	local serverTime = GetServerTime();
-	local resetTime = region ~= 3 and usResetTime or euResetTime;
+	local resetTime = euResetTime;
 	local week;
+
+	if region == 1 then
+		resetTime = usResetTime;
+	elseif region == 3 then
+		resetTime = euResetTime;
+	elseif region == 5 then
+		resetTime = cnResetTime;
+	end
 
 	week = math.floor((serverTime - resetTime) / 604800);
 	return serverTime - resetTime - 604800 * week, week;
