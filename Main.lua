@@ -618,7 +618,7 @@ end
 
 function KeystoneManager:FormatKeystone(info)
 	local color = self:GetKeystoneColor(info);
-	return format('|c%s%s|r +%d', color, info.mapName, info.level);
+	return format('|c%s%s|r +%d (+%d)', color, info.mapName, info.level, info.weeklyBest);
 end
 
 function KeystoneManager:GetShortInfo(info)
