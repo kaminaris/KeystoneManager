@@ -1,8 +1,8 @@
 ## Title: KeystoneManager
 ## Notes: A list of your keystones
-## Version: 8.1.5
+## Version: 8.2.5
 ## Author: Kaminaris
-## Interface: 80100
+## Interface: 80205
 ## SavedVariables: KeystoneManagerDb
 ## X-Curse-Project-ID: 254899
 ## X-WoWI-ID: 24817

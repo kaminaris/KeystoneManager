@@ -132,7 +132,7 @@ function Comm:ReceiveKeys(keystones)
 			if dbKey.timestamp < keyInfo.timestamp then
 				self.db.guildKeys[name] = keyInfo;
 			else
-				if dbKey.weeklyBest < keyInfo.weeklyBest then
+				if not dbKey.weeklyBest or dbKey.weeklyBest < keyInfo.weeklyBest then
 					dbKey.weeklyBest = keyInfo.weeklyBest;
 				end
 			end
