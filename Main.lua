@@ -139,7 +139,7 @@ function KeystoneManager:ShowGuildKeys()
 		return;
 	end
 
-	local guildKeysWindow = StdUi:Window(nil, 'Guild Keys', 500, 550);
+	local guildKeysWindow = StdUi:Window(nil, 500, 550, 'Guild Keys');
 	guildKeysWindow:SetPoint('CENTER');
 	self.guildKeysWindow = guildKeysWindow;
 
@@ -239,7 +239,7 @@ end
 function KeystoneManager:ShowWindow(input)
 	if not self.KeystoneWindow then
 
-		self.KeystoneWindow = StdUi:Window(UIParent, 'Keystone Manager', 625, 550);
+		self.KeystoneWindow = StdUi:Window(UIParent, 625, 550, 'Keystone Manager');
 
 		local window = self.KeystoneWindow;
 		window.titlePanel:SetBackdrop(nil);
@@ -403,7 +403,7 @@ end
 
 function KeystoneManager:ShowCopyWindow()
 	if not self.KeystoneCopyWindow then
-		local window = StdUi:Window(UIParent, 'Copy Keystones', 400, 350);
+		local window = StdUi:Window(UIParent, 400, 350, 'Copy Keystones');
 		window:SetPoint('CENTER');
 		window:SetFrameStrata('FULLSCREEN_DIALOG');
 
