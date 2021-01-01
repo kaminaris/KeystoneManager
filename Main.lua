@@ -31,6 +31,15 @@ local shortNames = {
 	[251] = 'UNDR',
 	[252] = 'SOTS',
 	[353] = 'SIEGE',
+
+	[375] = 'MOTS',
+	[376] = 'NW',
+	[377] = 'DOS',
+	[378] = 'HOA',
+	[379] = 'PF',
+	[380] = 'SD',
+	[381] = 'SOA',
+	[382] = 'TOP',
 };
 
 local activities = {
@@ -204,7 +213,7 @@ function KeystoneManager:RefreshGuildKeyTable()
 	local data = {};
 	local currentGuild = GetGuildInfo('player');
 
-	for name, keyInfo in pairs(self.db.guildKeys) do
+	for _, keyInfo in pairs(self.db.guildKeys) do
 		if (keyInfo.guild == nil or keyInfo.guild == currentGuild) and keyInfo.level then
 			tinsert(data, {
 				name       = keyInfo.shortName,
@@ -376,9 +385,9 @@ function KeystoneManager:ShowWindow(input)
 end
 
 function KeystoneManager:CreateLink(data)
-	-- '|cffa335ee|Hkeystone:158923:244:2:10:0:0:0|h[Keystone: Atal'dazar (2)]|h|r'
+	-- '|cffa335ee|Hkeystone:180653:244:2:10:0:0:0|h[Keystone: Atal'dazar (2)]|h|r'
 	local link = string.format(
-		'|cffa335ee|Hkeystone:158923:%d:%d:10:0:0:0|h[Keystone: %s (%d)]|h|r',
+		'|cffa335ee|Hkeystone:180653:%d:%d:10:0:0:0|h[Keystone: %s (%d)]|h|r',
 		data.mapId,
 		data.level,
 		data.mapNamePlain or data.mapName,

@@ -21,16 +21,70 @@ Comm.CurrentGuild = nil;
 
 --- Generic functions --------------------------------------------------------------------------------------------------
 
-function Comm:Enable()
+function Comm:OnEnable()
 	self.db = KeystoneManager.db;
 	self:RegisterEvent('PLAYER_ENTERING_WORLD', 'PlayerEnteringWorld');
 	self:RegisterComm(self.MessagePrefix, 'AstralHandleMessage');
 	self:RegisterComm(self.MessagePrefix2, 'HandleMessage');
 	self.CurrentGuild = GetGuildInfo('player');
+	self:RegisterEvent('CHAT_MSG_GUILD', 'GuildMessageCheckKeystone');
+end
+
+--local function tIndexOf(table, item)
+--	local index = 1;
+--	while table[index] do
+--		if ( item == table[index] ) then
+--			return 1;
+--		end
+--		index = index + 1;
+--	end
+--	return nil;
+--end
+
+function Comm:GuildMessageCheckKeystone(_, msg, playerName, ...)
+	if msg:find('Hkeystone:') then
+		local splitted = { strsplit(':', msg) };
+		local idx = tIndexOf(splitted, '180653');
+
+		if not idx then return end;
+
+		local mapId = tonumber(splitted[idx + 1]);
+		local level = tonumber(splitted[idx + 2]);
+		local timestamp, week = KeystoneManager:TimeStamp();
+
+		local keyInfo = {
+			name       = playerName,
+			shortName  = KeystoneManager:NameWithoutRealm(playerName),
+			class      = 'MAGE',
+			weeklyBest = 0,
+			mapId      = mapId,
+			timestamp  = timestamp,
+			week       = week,
+			mapName    = KeystoneManager.mapNames[mapId],
+			level      = level,
+			guild      = self.CurrentGuild
+		};
+
+		if not self.db.guildKeys[playerName] then
+			self.db.guildKeys[playerName] = keyInfo;
+		else
+			self.db.guildKeys[playerName].class = keyInfo.class;
+			self.db.guildKeys[playerName].guild = keyInfo.guild;
+			self.db.guildKeys[playerName].level = keyInfo.level;
+			self.db.guildKeys[playerName].mapId = keyInfo.mapId;
+			self.db.guildKeys[playerName].timestamp = keyInfo.timestamp;
+			self.db.guildKeys[playerName].week = keyInfo.week;
+			self.db.guildKeys[playerName].mapName = keyInfo.mapName;
+		end
+	else
+		print('no key')
+	end
 end
 
 function Comm:PlayerEnteringWorld()
 	self:RequestGuildKeys();
+	self.CurrentGuild = GetGuildInfo('player');
+	self:RegisterEvent('CHAT_MSG_GUILD', 'GuildMessageCheckKeystone');
 end
 
 
