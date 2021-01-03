@@ -76,8 +76,6 @@ function Comm:GuildMessageCheckKeystone(_, msg, playerName, ...)
 			self.db.guildKeys[playerName].week = keyInfo.week;
 			self.db.guildKeys[playerName].mapName = keyInfo.mapName;
 		end
-	else
-		print('no key')
 	end
 end
 
